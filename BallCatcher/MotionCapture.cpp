@@ -1,4 +1,5 @@
 #include "opencv2/opencv.hpp"
+#include <Windows.h>
 
 using namespace cv;
 
@@ -9,14 +10,18 @@ int main(int, char**)
 		return -1;
 	Mat edges;
 	namedWindow("edges", 1);
+	Mat prevframe;
+	Mat nextframe;
 	for (;;)
 	{
-		Mat frame;
-		cap >> frame; // get a new frame from camera
-		cvtColor(frame, edges, CV_BGR2GRAY);
+		cap >> prevframe; // get a new frame from camera
+		cap >> nextframe;
+		cvtColor(prevframe, edges, CV_BGR2GRAY);
 		GaussianBlur(edges, edges, Size(7, 7), 1.5, 1.5);
 		Canny(edges, edges, 0, 30, 3);
 		imshow("edges", edges);
+		//imshow("Prev", prevframe);
+		imshow("Next", nextframe);
 		if (waitKey(30) >= 0) break;
 	}
 	// the camera will be deinitialized automatically in VideoCapture destructor
