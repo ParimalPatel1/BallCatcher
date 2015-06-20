@@ -18,5 +18,14 @@
     <ClCompile Include="MotionCapture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="KalmanFilterPrediction.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kalman.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="camshiftdemo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
