@@ -206,6 +206,7 @@ int main(int argc, const char** argv)
 		default:
 			;
 		}
+		if (waitKey(30) >= 0) break;
 	}
 
 	return 0;
