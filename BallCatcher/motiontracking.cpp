@@ -103,7 +103,8 @@ int main() {
 	Mat* frame1; // current frame, consider renaming?
 	Mat* frame2; // previous frame
 	//their grayscale images (needed for absdiff() function)
-	Mat grayImage1, grayImage2;
+	Mat* grayImage1;
+	Mat* grayImage2;
 	//resulting difference image
 	Mat differenceImage;
 	//thresholded difference image (for use in findContours() function)
@@ -124,20 +125,12 @@ int main() {
 	unsigned int start = clock(); // timer variable
 
 	Mat image_array[2];
+	Mat gray_array[2];
 
 	VideoWriter outputVideo;
 
 	const string filepath = "test.avi"; //C:\Users\Benjamin\Desktop\
-	//frame1.data = image_array[1].data;
-	//frame1.datastart = image_array[1].datastart;
-	//frame1.dataend = image_array[1].dataend;
-	//frame1.datalimit = image_array[1].datalimit;
 
-
-	//frame1.data = image_array[1].data;
-	//frame1.datastart = image_array[1].datastart;
-	//frame1.dataend = image_array[1].dataend;
-	//frame1.datalimit = image_array[1].datalimit;
 
 
 	while (1) {
@@ -168,125 +161,108 @@ int main() {
 			cout << "!!! Output video could not be opened        " << int(capture.get(CV_CAP_PROP_FOURCC))<< "      "<< int(capture.get(CV_CAP_PROP_FPS)) << endl;
 			return -1;
 		}
+		
 
 
 		//check if the video has reach its last frame.
 		//we add '-1' because we are reading two frames from the video at a time.
 		//if this is not included, we get a memory error!
 
-	//	capture.read(frame1); // frame 1 == current frame
 		int toggle = 0;
 		capture.read(image_array[toggle]);
-		
+		cvtColor(image_array[toggle], gray_array[toggle], COLOR_BGR2GRAY);
+//#pragma loop(hint_parallel(8))
 		while (1) { //capture.get(CV_CAP_PROP_POS_FRAMES)<capture.get(CV_CAP_PROP_FRAME_COUNT) - 1)
-			if (toggle == 0)
+			//Time and Frame tracker and display -> should be exracted to seperate functions
+			current_time = 1 + ((clock() - start) / 1000);
+			framecounter++;
+
+			if (toggle == 0) // pointer manipulation for circular buffer
 			{
 				frame2 = &image_array[0];
 				frame1 = &image_array[1];
+				grayImage2 = &gray_array[0];
+				grayImage1 = &gray_array[1];
 				toggle = 1;
 			}
 			else
 			{
 				frame2 = &image_array[1];
 				frame1 = &image_array[0];
+				grayImage2 = &gray_array[1];
+				grayImage1 = &gray_array[0];
 				toggle = 0;
 			}
 			capture.read(image_array[toggle]);
+			cvtColor(image_array[toggle], gray_array[toggle], COLOR_BGR2GRAY);
 
-			//Time and Frame tracker and display -> should be exracted to seperate functions
-			current_time = 1 + ((clock() - start) / 1000);
-			framecounter++;
-					
-			//frame2 = frame1.clone(); // current frame now previous frame
-			//read first frame
-		//	capture.read(frame1);
-			//convert frame1 to gray scale for frame differencing
-	
-			//read second frame
-		//	capture.read(frame2);
-			//convert frame2 to gray scale for frame differencing
-			cv::cvtColor(*frame1, grayImage1, COLOR_BGR2GRAY);
-			cv::cvtColor(*frame2, grayImage2, COLOR_BGR2GRAY);
-			//perform frame differencing with the sequential images. This will output an "intensity image"
-			//do not confuse this with a threshold image, we will need to perform thresholding afterwards.
-			cv::absdiff(grayImage1, grayImage2, differenceImage);
+			//perform frame differencing with the sequential images. 
+			absdiff(*grayImage1, *grayImage2, differenceImage);
 			//threshold intensity image at a given sensitivity value
-			cv::threshold(differenceImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
-			if (debugMode == true) {
-				//show the difference image and threshold image
-				cv::imshow("Difference Image", differenceImage);
-				cv::imshow("Threshold Image", thresholdImage);
-			}
-			else {
-				//if not in debug mode, destroy the windows so we don't see them anymore
-				cv::destroyWindow("Difference Image");
-				cv::destroyWindow("Threshold Image");
-			}
+			threshold(differenceImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
 			//blur the image to get rid of the noise. This will output an intensity image
-			cv::blur(thresholdImage, thresholdImage, cv::Size(BLUR_SIZE, BLUR_SIZE));
+			blur(thresholdImage, thresholdImage, Size(BLUR_SIZE, BLUR_SIZE));
 			//threshold again to obtain binary image from blur output
-			cv::threshold(thresholdImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
-			if (debugMode == true) {
-				//show the threshold image after it's been "blurred"
+			threshold(thresholdImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
 
-				imshow("Final Threshold Image", thresholdImage);
-
-			}
-			else {
-				//if not in debug mode, destroy the windows so we don't see them anymore
-				cv::destroyWindow("Final Threshold Image");
-			}
+			searchForMovement(thresholdImage, *frame1);
+				
+			//if (debugMode == true) {
+			//	//show the difference image and threshold image
+			//	imshow("Difference Image", differenceImage);
+			//	imshow("Threshold Image", thresholdImage);
+			//}
+			//else {
+			//	//if not in debug mode, destroy the windows so we don't see them anymore
+			//	destroyWindow("Difference Image");
+			//	destroyWindow("Threshold Image");
+			//}
 
 			//if tracking enabled, search for contours in our thresholded image
-			if (trackingEnabled) {
-
-				searchForMovement(thresholdImage, *frame1);
-
-				output_cap.write(*frame1);
-			}
-
-			putText(*frame1, "FPS: " + to_string(framecounter / current_time), textcenter3, fontFace, fontScale, Scalar::all(255), thickness, 5);
+		//	if (trackingEnabled) {
+				//output_cap.write(*frame1);
+		//	}
+			cout << "FPS: " << to_string(framecounter / current_time) << endl; // faster than draw??
+			//putText(*frame1, "FPS: " + to_string(framecounter / current_time), textcenter3, fontFace, fontScale, Scalar::all(255), thickness, 5);
 			//show our captured frame
 			imshow("Frame1", *frame1);
-
+			
+			waitKey(1);
 			//check to see if a button has been pressed.
 			//this 10ms delay is necessary for proper operation of this program
 			//if removed, frames will not have enough time to referesh and a blank 
 			//image will appear.
-			switch (waitKey(10)) {
+			//switch () {
 
-			case 27: //'esc' key has been pressed, exit program.
-				return 0;
-			case 116: //'t' has been pressed. this will toggle tracking
-				trackingEnabled = !trackingEnabled;
-				if (trackingEnabled == false) cout << "Tracking disabled." << endl;
-				else cout << "Tracking enabled." << endl;
-				break;
-			case 100: //'d' has been pressed. this will debug mode
-				debugMode = !debugMode;
-				if (debugMode == false) cout << "Debug mode disabled." << endl;
-				else cout << "Debug mode enabled." << endl;
-				break;
-			case 112: //'p' has been pressed. this will pause/resume the code.
-				pause = !pause;
-				if (pause == true) {
-					cout << "Code paused, press 'p' again to resume" << endl;
-					while (pause == true) {
-						//stay in this loop until 
-						switch (waitKey()) {
-							//a switch statement inside a switch statement? Mind blown.
-						case 112:
-							//change pause back to false
-							pause = false;
-							cout << "Code Resumed" << endl;
-							break;
-						}
-					}
-				}
-
-
-
-			}
+			//case 27: //'esc' key has been pressed, exit program.
+			//	return 0;
+			//case 116: //'t' has been pressed. this will toggle tracking
+			//	trackingEnabled = !trackingEnabled;
+			//	if (trackingEnabled == false) cout << "Tracking disabled." << endl;
+			//	else cout << "Tracking enabled." << endl;
+			//	break;
+			//case 100: //'d' has been pressed. this will debug mode
+			//	debugMode = !debugMode;
+			//	if (debugMode == false) cout << "Debug mode disabled." << endl;
+			//	else cout << "Debug mode enabled." << endl;
+			//	break;
+			//case 112: //'p' has been pressed. this will pause/resume the code.
+			//	pause = !pause;
+			//	if (pause == true) {
+			//		cout << "Code paused, press 'p' again to resume" << endl;
+			//		while (pause == true) {
+			//			//stay in this loop until 
+			//			switch (waitKey()) {
+			//				//a switch statement inside a switch statement? Mind blown.
+			//			case 112:
+			//				//change pause back to false
+			//				pause = false;
+			//				cout << "Code Resumed" << endl;
+			//				break;
+			//			}
+			//		}
+			//	}
+		//	}
 		}
 		//release the capture before re-opening and looping again.
 		capture.release();
