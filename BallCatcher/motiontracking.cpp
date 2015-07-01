@@ -15,9 +15,20 @@
 
 #include <opencv\cv.h>
 #include <opencv\highgui.h>
+#include  <opencv2\opencv.hpp>
+#include <Windows.h>
+#include <ctime>
+//#include <opencv2/photo.hpp>
+//#include "opencv2/imgcodecs.hpp"
+//#include <opencv2/highgui.hpp>
+//#include  <opencv2\highgui\highgui_c.h>
+//#include  <opencv2\core\core.hpp>
 
-using namespace std;
+//#include <string>
+
+
 using namespace cv;
+using namespace std;
 
 //our sensitivity value to be used in the absdiff() function
 const static int SENSITIVITY_VALUE = 20;
@@ -26,10 +37,11 @@ const static int BLUR_SIZE = 10;
 //we'll have just one object to search for
 //and keep track of its position.
 int theObject[2] = { 0,0 };
+Mat TrackerImage;
 //bounding rectangle of the object, we will use the center of this as its position.
 Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
-
-
+vector<int> compression_params;
+int imagecount = 0;
 //int to string helper function
 string intToString(int number) {
 
@@ -39,7 +51,7 @@ string intToString(int number) {
 	return ss.str();
 }
 
-void searchForMovement(Mat thresholdImage, Mat &cameraFeed) {
+void searchForMovement(Mat &thresholdImage, Mat &cameraFeed) {
 	//notice how we use the '&' operator for objectDetected and cameraFeed. This is because we wish
 	//to take the values passed into the function and manipulate them, rather than just working with a copy.
 	//eg. we draw to the cameraFeed to be displayed in the main() function.
@@ -54,10 +66,11 @@ void searchForMovement(Mat thresholdImage, Mat &cameraFeed) {
 	findContours(thresholdImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);// retrieves external contours
 
 																					  //if contours vector is not empty, we have found some objects
-	if (contours.size()>0)objectDetected = true;
+	if (contours.size() > 0)objectDetected = true;
 	else objectDetected = false;
 
 	if (objectDetected) {
+		imagecount++;
 		//the largest contour is found at the end of the contours vector
 		//we will simply assume that the biggest contour is the object we are looking for.
 		vector< vector<Point> > largestContourVec;
@@ -70,23 +83,37 @@ void searchForMovement(Mat thresholdImage, Mat &cameraFeed) {
 
 		//update the objects positions by changing the 'theObject' array values
 		theObject[0] = xpos, theObject[1] = ypos;
+
+		int x = theObject[0];
+		int y = theObject[1];
+		vector<Vec3f> circles;
+
+	/*	HoughCircles(cameraFeed, circles, CV_HOUGH_GRADIENT, 2, 170, 200, 100, 5, 200);
+		/// Draw the circles detected
+		for (size_t i = 0; i < circles.size(); i++)
+		{
+			Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
+			int radius = cvRound(circles[i][2]);
+			// circle center
+			circle(cameraFeed, center, 3, Scalar(0, 255, 0), -1, 8, 0);
+			// circle outline
+			circle(cameraFeed, center, radius, Scalar(0, 0, 255), 3, 8, 0);
+		}
+		*/
+		//draw some crosshairs around the object
+		circle(TrackerImage, Point(x, y), 20, Scalar(0, 255, 0), 2);
+		line(TrackerImage, Point(x, y), Point(x, y - 25), Scalar(0, 255, 0), 2);
+		line(TrackerImage, Point(x, y), Point(x, y + 25), Scalar(0, 255, 0), 2);
+		line(TrackerImage, Point(x, y), Point(x - 25, y), Scalar(0, 255, 0), 2);
+		line(TrackerImage, Point(x, y), Point(x + 25, y), Scalar(0, 255, 0), 2);
+
+		//write the position of the object to the screen
+		putText(TrackerImage, "Tracking object at (" + intToString(x) + "," + intToString(y) + ")", Point(x, y), 1, 1, Scalar(255, 0, 0), 2);
+		
+		imshow("TrackerImage", TrackerImage);
+			imwrite("trackingH"+intToString(imagecount)+".png", cameraFeed, compression_params);
 	}
 	//make some temp x and y variables so we dont have to type out so much
-	int x = theObject[0];
-	int y = theObject[1];
-
-	//draw some crosshairs around the object
-	circle(cameraFeed, Point(x, y), 20, Scalar(0, 255, 0), 2);
-	line(cameraFeed, Point(x, y), Point(x, y - 25), Scalar(0, 255, 0), 2);
-	line(cameraFeed, Point(x, y), Point(x, y + 25), Scalar(0, 255, 0), 2);
-	line(cameraFeed, Point(x, y), Point(x - 25, y), Scalar(0, 255, 0), 2);
-	line(cameraFeed, Point(x, y), Point(x + 25, y), Scalar(0, 255, 0), 2);
-
-	//write the position of the object to the screen
-	putText(cameraFeed, "Tracking object at (" + intToString(x) + "," + intToString(y) + ")", Point(x, y), 1, 1, Scalar(255, 0, 0), 2);
-
-
-
 }
 int main() {
 
@@ -108,12 +135,9 @@ int main() {
 	//resulting difference image
 	Mat differenceImage;
 	//thresholded difference image (for use in findContours() function)
-	Mat thresholdImage;
+	Mat* thresholdImage = &Mat();
 	//video capture object.
 	VideoCapture capture;
-
-
-	int framecounter = 0;
 	
 	Point textcenter1(100, 50); // text variables start
 	Point textcenter2(100, 100);
@@ -121,152 +145,168 @@ int main() {
 	int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
 	double fontScale = 1;
 	int thickness = 2; // text variables end
-	int current_time = 0;
-	unsigned int start = clock(); // timer variable
+
+	unsigned int current_time = 1;
+	float start_time = clock(); // timer variable
+	unsigned int last_time = clock();
+	unsigned int framecounter = 0;
+	int frame_start = 0;
+	float fps;
 
 	Mat image_array[2];
 	Mat gray_array[2];
 
 	VideoWriter outputVideo;
 
-	const string filepath = "test.avi"; //C:\Users\Benjamin\Desktop\
+	const string filepath = "\test.avi"; //C:\Users\Benjamin\Desktop
+	VideoWriter output_cap;
 
 
 
-	while (1) {
-
-		//we can loop the video by re-opening the capture every time the video reaches its last frame
-
-		capture.open(0);
-
-		if (!capture.isOpened()) {
-			cout << "ERROR ACQUIRING VIDEO FEED\n";
-			getchar();
-			return -1;
-		}
-
-		capture.set(CV_CAP_PROP_FRAME_WIDTH, 640);
-		capture.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-		capture.set(CV_CAP_PROP_FPS, 30);
-		capture.set(CV_CAP_PROP_FOURCC, -1);
-
-		VideoWriter output_cap(filepath,
-			CV_FOURCC('M', 'J', 'P', 'G'),
-			capture.get(CV_CAP_PROP_FPS),
-			Size(capture.get(CV_CAP_PROP_FRAME_WIDTH),
-				capture.get(CV_CAP_PROP_FRAME_HEIGHT)),true);
-
-		if (!output_cap.isOpened())
-		{
-			cout << "!!! Output video could not be opened        " << int(capture.get(CV_CAP_PROP_FOURCC))<< "      "<< int(capture.get(CV_CAP_PROP_FPS)) << endl;
-			return -1;
-		}
-		
-
-
-		//check if the video has reach its last frame.
-		//we add '-1' because we are reading two frames from the video at a time.
-		//if this is not included, we get a memory error!
-
-		int toggle = 0;
-		capture.read(image_array[toggle]);
-		cvtColor(image_array[toggle], gray_array[toggle], COLOR_BGR2GRAY);
-//#pragma loop(hint_parallel(8))
-		while (1) { //capture.get(CV_CAP_PROP_POS_FRAMES)<capture.get(CV_CAP_PROP_FRAME_COUNT) - 1)
-			//Time and Frame tracker and display -> should be exracted to seperate functions
-			current_time = 1 + ((clock() - start) / 1000);
-			framecounter++;
-
-			if (toggle == 0) // pointer manipulation for circular buffer
-			{
-				frame2 = &image_array[0];
-				frame1 = &image_array[1];
-				grayImage2 = &gray_array[0];
-				grayImage1 = &gray_array[1];
-				toggle = 1;
-			}
-			else
-			{
-				frame2 = &image_array[1];
-				frame1 = &image_array[0];
-				grayImage2 = &gray_array[1];
-				grayImage1 = &gray_array[0];
-				toggle = 0;
-			}
-			capture.read(image_array[toggle]);
-			cvtColor(image_array[toggle], gray_array[toggle], COLOR_BGR2GRAY);
-
-			//perform frame differencing with the sequential images. 
-			absdiff(*grayImage1, *grayImage2, differenceImage);
-			//threshold intensity image at a given sensitivity value
-			threshold(differenceImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
-			//blur the image to get rid of the noise. This will output an intensity image
-			blur(thresholdImage, thresholdImage, Size(BLUR_SIZE, BLUR_SIZE));
-			//threshold again to obtain binary image from blur output
-			threshold(thresholdImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
-
-			searchForMovement(thresholdImage, *frame1);
-				
-			//if (debugMode == true) {
-			//	//show the difference image and threshold image
-			//	imshow("Difference Image", differenceImage);
-			//	imshow("Threshold Image", thresholdImage);
-			//}
-			//else {
-			//	//if not in debug mode, destroy the windows so we don't see them anymore
-			//	destroyWindow("Difference Image");
-			//	destroyWindow("Threshold Image");
-			//}
-
-			//if tracking enabled, search for contours in our thresholded image
-		//	if (trackingEnabled) {
-				//output_cap.write(*frame1);
-		//	}
-			cout << "FPS: " << to_string(framecounter / current_time) << endl; // faster than draw??
-			//putText(*frame1, "FPS: " + to_string(framecounter / current_time), textcenter3, fontFace, fontScale, Scalar::all(255), thickness, 5);
-			//show our captured frame
-			imshow("Frame1", *frame1);
-			
-			waitKey(1);
-			//check to see if a button has been pressed.
-			//this 10ms delay is necessary for proper operation of this program
-			//if removed, frames will not have enough time to referesh and a blank 
-			//image will appear.
-			//switch () {
-
-			//case 27: //'esc' key has been pressed, exit program.
-			//	return 0;
-			//case 116: //'t' has been pressed. this will toggle tracking
-			//	trackingEnabled = !trackingEnabled;
-			//	if (trackingEnabled == false) cout << "Tracking disabled." << endl;
-			//	else cout << "Tracking enabled." << endl;
-			//	break;
-			//case 100: //'d' has been pressed. this will debug mode
-			//	debugMode = !debugMode;
-			//	if (debugMode == false) cout << "Debug mode disabled." << endl;
-			//	else cout << "Debug mode enabled." << endl;
-			//	break;
-			//case 112: //'p' has been pressed. this will pause/resume the code.
-			//	pause = !pause;
-			//	if (pause == true) {
-			//		cout << "Code paused, press 'p' again to resume" << endl;
-			//		while (pause == true) {
-			//			//stay in this loop until 
-			//			switch (waitKey()) {
-			//				//a switch statement inside a switch statement? Mind blown.
-			//			case 112:
-			//				//change pause back to false
-			//				pause = false;
-			//				cout << "Code Resumed" << endl;
-			//				break;
-			//			}
-			//		}
-			//	}
-		//	}
-		}
-		//release the capture before re-opening and looping again.
-		capture.release();
+	namedWindow("Hough Circle Transform Demo", CV_WINDOW_AUTOSIZE);
+	capture.open(701); // 700 -> directx + index
+//	Sleep(500);
+	if (!capture.isOpened()) {
+		cout << "ERROR ACQUIRING VIDEO FEED\n";
+		getchar();
+		return -1;
 	}
+	
+
+	capture.set(CV_CAP_PROP_FOURCC, CV_FOURCC('M', 'J', 'P', 'G'));
+	capture.set(CV_CAP_PROP_FRAME_WIDTH, 640); // 1280 for intergrated webcam, 1080 for external webcam
+	capture.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
+	capture.set(CV_CAP_PROP_FPS, 30);
+	capture.set(CV_CAP_PROP_EXPOSURE, 99);
+	
+	int toggle = 0;
+	while(!capture.read(image_array[toggle]));
+	while(!capture.read(image_array[toggle]));
+	cvtColor(image_array[toggle], gray_array[toggle], COLOR_BGR2GRAY);
+	image_array[toggle].copyTo(TrackerImage);
+//	compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
+//	compression_params.push_back(9);
+	//int ex = static_cast<int>(capture.get(CV_CAP_PROP_FOURCC));
+	//char EXT[] = { ex & 0XFF , (ex & 0XFF00) >> 8,(ex & 0XFF0000) >> 16,(ex & 0XFF000000) >> 24, 0 };
+/*	 int debug = output_cap.open(filepath,
+		 -1, //YUYV
+		capture.get(CV_CAP_PROP_FPS),
+		Size(capture.get(CV_CAP_PROP_FRAME_WIDTH),
+			capture.get(CV_CAP_PROP_FRAME_HEIGHT)),true);
+	 Sleep(100);
+	 if (!output_cap.isOpened())
+	 {
+		 cout << "!!! Output video could not be opened" << debug << "\n" <<
+			 capture.get(CV_CAP_PROP_FPS) << "\n" <<
+			 capture.get(CV_CAP_PROP_FRAME_HEIGHT) << "\n" <<
+			 capture.get(CV_CAP_PROP_FRAME_WIDTH) << endl;
+		 return -1;
+	 }
+	 */
+	
+	
+
+
+//#pragma loop(hint_parallel(8))
+	while (1) {
+		if (toggle == 0) // pointer manipulation for circular buffer
+		{
+			frame2 = &image_array[0];
+			frame1 = &image_array[1];
+			grayImage2 = &gray_array[0];
+			grayImage1 = &gray_array[1];
+			toggle = 1;
+		}
+		else
+		{
+			frame2 = &image_array[1];
+			frame1 = &image_array[0];
+			grayImage2 = &gray_array[1];
+			grayImage1 = &gray_array[0];
+			toggle = 0;
+		}
+		capture.read(image_array[toggle]);
+		
+		cvtColor(image_array[toggle], gray_array[toggle], COLOR_BGR2GRAY);
+		GaussianBlur(*grayImage1, *grayImage1, Size(9, 9), 2, 2);
+		//perform frame differencing with the sequential images. 
+		absdiff(*grayImage1, *grayImage2, differenceImage);
+		//threshold intensity image at a given sensitivity value
+		threshold(differenceImage, *thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
+		//blur the image to get rid of the noise. This will output an intensity image
+		blur(*thresholdImage, *thresholdImage, Size(BLUR_SIZE, BLUR_SIZE));
+	//	blur(differenceImage, *thresholdImage, Size(BLUR_SIZE, BLUR_SIZE));
+		//threshold again to obtain binary image from blur output
+		threshold(*thresholdImage, *thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
+
+		searchForMovement(*thresholdImage, *grayImage1);
+
+
+
+
+		/// Show your results
+
+
+			
+		//if tracking enabled, search for contours in our thresholded image
+	//	if (trackingEnabled) {
+			//output_cap.write(*frame1);
+
+		fps = 1000 / (1 + clock() - last_time);
+		cout << "FPS: " << fps << endl; // faster than draw??
+
+	
+		//putText(*grayImage1, "FPS: " + to_string(fps), textcenter3, fontFace, fontScale, Scalar::all(255), thickness, 5); // DONT DRAW ON GRAY OR RGB IMAGES BECAUSE THEY ARE STORED FOR NEXT CYCLE
+		imshow("ThresholdImage", *thresholdImage);
+		//show our captured frame
+		imshow("Frame1", *frame1);
+		
+		//check to see if a button has been pressed.
+		//this 10ms delay is necessary for proper operation of this program
+		//if removed, frames will not have enough time to referesh and a blank 
+		//image will appear.
+		char key = waitKey(1);
+		switch (key) {
+
+		case 'q': //'esc' key has been pressed, exit program.
+			return 0;
+		case 't': //'t' has been pressed. this will toggle tracking
+			trackingEnabled = !trackingEnabled;
+			if (trackingEnabled == false) cout << "Tracking disabled." << endl;
+			else cout << "Tracking enabled." << endl;
+			break;
+		case 'd': //'d' has been pressed. this will debug mode
+			debugMode = !debugMode;
+			if (debugMode == false) cout << "Debug mode disabled." << endl;
+			else cout << "Debug mode enabled." << endl;
+			break;
+		case 'p': //'p' has been pressed. this will pause/resume the code.
+			pause = !pause;
+			if (pause == true) {
+				cout << "Code paused, press 'p' again to resume" << endl;
+				while (pause == true) {
+					//stay in this loop until 
+					switch (waitKey()) {
+						//a switch statement inside a switch statement? Mind blown.
+					case 'p':
+						//change pause back to false
+						pause = false;
+						cout << "Code Resumed" << endl;
+						break;
+					}
+				}
+
+			}
+		case 'r' :  // refresh the drawn points
+			imagecount = 0;
+			image_array[toggle].copyTo(TrackerImage);
+			break;
+		}
+		last_time = clock();
+	}
+	//release the capture before re-opening and looping again.
+//	capture.release();
+//	output_cap.release();
 
 	return 0;
 
