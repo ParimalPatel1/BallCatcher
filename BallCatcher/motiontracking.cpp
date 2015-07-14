@@ -23,6 +23,8 @@
 
 using namespace cv;
 using namespace std;
+//#define 2NDCAMERA
+#define OUTPUTCAP
 // START GLOBALS
 //our sensitivity value to be used in the absdiff() function
 const static int SENSITIVITY_VALUE = 20;
@@ -32,10 +34,11 @@ const static int BLUR_SIZE = 10;
 //and keep track of its position.
 int trackedObject[2] = { 0,0 };
 //bounding rectangle of the object, we will use the center of this as its position.
-Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
+
 vector<int> compression_params;
 int imagecount = 0;
 int imagecount2 = 0;
+int framecount = 0;
 #define RESOLUTION Size(640,480)
 #define BufferSize 2
 Point pointlist[10000];
@@ -108,15 +111,18 @@ public:
 		previous_ptr = &buffer[previous_frame];
 		return *previous_ptr;
 	}
-	type increment()
+	
+	type next()
 	{
-		//previous_frame = current_frame; // current frame about to be updated, so save
-		//current_frame = current_frame + 1 == bufferend ? bufferstart : current_frame + 1;
-		//next_frame = current_frame + 1 == bufferend ? bufferstart : current_frame + 1;
+		next_ptr = &buffer[next_frame];
+		return *next_ptr;
+	}	
+	type store()
+	{
 		circulate(previous_frame);
 		circulate(current_frame);
 		circulate(next_frame);
-		return current();
+		return current(); //current is next, so store there. PROBLEM
 	}
 
 	void set(type &source)
@@ -152,18 +158,26 @@ private:
 
 };
 
-
+static inline Point calcPoint(Point2f center, double R, double angle)
+{
+	return center + Point2f((float)cos(angle), (float)-sin(angle))*(float)R;
+}
 template <class type>
 class ImagePipeline
 {
 public:
 	CircularBuffer<type> a;
-
 protected:
 
 private:
 
 };
+
+int circlecheck(Point testpoint)
+{
+
+	return 0;
+}
 
 //int to string helper function
 string intToString(int number) {
@@ -179,17 +193,145 @@ int searchForMovement(Mat &thresholdImage, Mat &movingobjects, int camera = 1) {
 	//these two vectors needed for output of findContours
 	vector< vector<Point> > contours;
 	vector<Vec4i> hierarchy;
+	Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
 	//find contours of filtered image using openCV findContours function
 	//findContours(temp,contours,hierarchy,CV_RETR_CCOMP,CV_CHAIN_APPROX_SIMPLE );// retrieves all contours
-	findContours(thresholdImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);// retrieves external contours
-
-	/// Find the rotated rectangles and ellipses for each contour
-	vector<RotatedRect> minRect(contours.size());
-	vector<RotatedRect> minEllipse(contours.size());
+	//imwrite("thresh" + intToString(framecount) + ".png", thresholdImage);
+	findContours(thresholdImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);// retrieves external contours, CHANGES THRESHOLD IMAGE
+//	HoughCircles()
 
 	//if contours vector is not empty, we have found some objects
 	if (contours.size() > 0)
 	{
+	//	imwrite("contours" + intToString(framecount) + ".png", thresholdImage);
+		//the largest contour is found at the end of the contours vector
+		//we will simply assume that the biggest contour is the object we are looking for.
+		vector< vector<Point> > largestContourVec;
+		float circularratio;
+		for (int i = contours.size() - 1; i == 0; i--)
+		{ 
+			//	circlecheck(Point(contours.at(i).at(i).x, contours.at(i).at(i).y));
+			//largestContourVec.push_back(contours.at(contours.size() - 1));
+			Mat rects;
+			thresholdImage.copyTo(rects);
+			objectBoundingRectangle = boundingRect(contours.at(i));//largestContourVec.at(0));
+			rectangle(rects, objectBoundingRectangle, Scalar(255, 255, 255));
+		//	imshow("rect", rects);
+			if (objectBoundingRectangle.area() > 20 && objectBoundingRectangle.area() < 500000) // first size check
+			{
+				rectangle(movingobjects, objectBoundingRectangle, Scalar(255, 255, 255));
+			//	imwrite("rectangle" + intToString(framecount) + ".png", movingobjects);
+				circularratio = (float)objectBoundingRectangle.width / objectBoundingRectangle.height;
+
+
+				float threshold = 3; 
+			//	if (circularratio > (float)1/threshold || circularratio < (float)1*threshold)// (circularratio > 1 - threshold || circularratio < 1 + threshold)  //then roundness check
+			//	{ // we think this a moving circle now
+				int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+				int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+				if (camera == 1)
+				{
+					pointlist[imagecount] = Point(xpos, ypos); //.at(imagecount,imagecount);
+					circle(movingobjects, pointlist[imagecount], 20, Scalar(255, 255, 255), 2);
+				//	imwrite("circle" + intToString(framecount) + ".png", movingobjects);
+					
+					if (imagecount > 0)
+					{
+						line(movingobjects, pointlist[imagecount - 1], pointlist[imagecount], Scalar(255, 255, 255), 2);
+					}
+					imagecount++;
+				}
+				if (camera == 2)
+				{
+					pointlist2[imagecount2] = Point(xpos, ypos); //.at(imagecount,imagecount);
+					circle(movingobjects, pointlist2[imagecount2], 20, Scalar(255, 255, 255), 2);
+				//	imwrite("circle" + intToString(framecount) + ".png", movingobjects);
+					if (imagecount > 0)
+					{
+						line(movingobjects, pointlist2[imagecount2 - 1], pointlist2[imagecount2], Scalar(255, 255, 255), 2);
+					}
+					imagecount2++;
+
+				}
+			//	}
+			}
+
+		}
+	//	largestContourVec.push_back(contours.at(contours.size() - 1));
+		//make a bounding rectangle around the largest contour then find its centroid
+		//this will be the object's final estimated position.
+	//	objectBoundingRectangle = boundingRect(largestContourVec.at(0));
+		//if (objectBoundingRectangle.area() > 50 && objectBoundingRectangle.area() < 1000) // RESOLUTION DEPENDANT
+		//{
+		//	rectangle(movingobjects, objectBoundingRectangle, Scalar(255, 255, 0));
+		//}
+
+		//int circularratio = objectBoundingRectangle.width / objectBoundingRectangle.height;
+		//if (objectBoundingRectangle.area() > 30) // filter out more noise between frames // RESOLUTION DEPENDANT 
+		//{
+		//	int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+		//	int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+		//	
+		//	if (camera == 1)
+		//		{
+		//			pointlist[imagecount] = Point(xpos, ypos); //.at(imagecount,imagecount);
+		//			circle(movingobjects, pointlist[imagecount], 20, Scalar(255, 255, 255), 2);
+		//		/*	if (imagecount == 0)
+		//			{
+		//				airtime_clock = clock(); // start timer for first point
+		//				putText(movingobjects, "Time(ms): 0", pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
+		//			}
+		//			else
+		//			{
+		//				int timelaspe = clock() - airtime_clock;
+		//				putText(movingobjects, "Time(ms): " + to_string(timelaspe), pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
+		//			}
+		//			*/
+		//			//putText(TrackerImage, "Tracking object at (" + intToString(xpos) + "," + intToString(ypos) + ")", pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
+		//			if (imagecount > 0)
+		//			{
+		//				line(movingobjects, pointlist[imagecount - 1], pointlist[imagecount], Scalar(255, 255, 255), 2);
+		//			}
+		//			imagecount++;
+		//		}
+		//		if (camera == 2)
+		//		{
+		//			pointlist2[imagecount2] = Point(xpos, ypos); //.at(imagecount,imagecount);
+		//			circle(movingobjects, pointlist2[imagecount2], 20, Scalar(0, 255, 0), 2);
+		//		/*	if (imagecount2 == 0)
+		//			{
+		//				airtime_clock2 = clock(); // start timer for first point
+		//				putText(movingobjects, "Time(ms): 0", pointlist2[imagecount2], 1, 1, Scalar(255, 0, 0), 2);
+		//			}
+		//			else
+		//			{
+		//				int timelaspe = clock() - airtime_clock2;
+		//				putText(movingobjects, "Time(ms): " + to_string(timelaspe), pointlist2[imagecount2], 1, 1, Scalar(255, 0, 0), 2);
+		//			}
+		//			*/
+		//			if (imagecount2 > 0)
+		//			{
+		//				line(movingobjects, pointlist2[imagecount2 - 1], pointlist2[imagecount2], Scalar(0, 255, 0), 2);
+		//			}
+		//			imagecount2++;
+			}
+			return 1;
+}
+
+int searchForCircles(Mat &thresholdImage, Mat &movingobjects, int camera = 1) {
+	bool objectDetected = false;
+	//these two vectors needed for output of findContours
+	vector< vector<Point> > contours;
+	vector<Vec4i> hierarchy;
+	Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
+	//find contours of filtered image using openCV findContours function
+	//findContours(temp,contours,hierarchy,CV_RETR_CCOMP,CV_CHAIN_APPROX_SIMPLE );// retrieves all contours
+	findContours(thresholdImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);// retrieves external contours																					//if contours vector is not empty, we have found some objects
+	if (contours.size() > 0)
+	{
+		/// Find the rotated rectangles and ellipses for each contour
+		vector<RotatedRect> minRect(contours.size());
+		vector<RotatedRect> minEllipse(contours.size());
 		//the largest contour is found at the end of the contours vector
 		//we will simply assume that the biggest contour is the object we are looking for.
 		vector< vector<Point> > largestContourVec;
@@ -197,85 +339,21 @@ int searchForMovement(Mat &thresholdImage, Mat &movingobjects, int camera = 1) {
 		//make a bounding rectangle around the largest contour then find its centroid
 		//this will be the object's final estimated position.
 		objectBoundingRectangle = boundingRect(largestContourVec.at(0));
-		if (objectBoundingRectangle.area() > 30) // filter out more noise between frames // RESOLUTION DEPENDANT 
+
+		for (int i = 0; i < contours.size(); i++) /////// MOVE ELSEWHERE
 		{
-			int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
-			int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
-//			Mat distance;
-	//		magnitude(xpos, ypos, distance);
-	//		distance.at<uchar>(xpos, ypos);
-			//distance.at
-			if (trackingEnabled) 
+			if (contours[i].size() > 20 && contours[i].size() < 300)
 			{
-				if (camera == 1)
-				{
-					trackedObject[0] = xpos;
-					trackedObject[1] = ypos;
-					pointlist[imagecount] = Point(xpos, ypos); //.at(imagecount,imagecount);
-					circle(movingobjects, pointlist[imagecount], 20, Scalar(0, 255, 0), 2);
-					if (imagecount == 0)
-					{
-						airtime_clock = clock(); // start timer for first point
-						putText(movingobjects, "Time(ms): 0", pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
-					}
-					else
-					{
-						int timelaspe = clock() - airtime_clock;
-						putText(movingobjects, "Time(ms): " + to_string(timelaspe), pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
-					}
-					//putText(TrackerImage, "Tracking object at (" + intToString(xpos) + "," + intToString(ypos) + ")", pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
-					if (imagecount > 0)
-					{
-						line(movingobjects, pointlist[imagecount - 1], pointlist[imagecount], Scalar(0, 255, 0), 2);
-					}
-					imagecount++;
-				}
-				if (camera == 2)
-				{
-					pointlist2[imagecount2] = Point(xpos, ypos); //.at(imagecount,imagecount);
-					circle(movingobjects, pointlist2[imagecount2], 20, Scalar(0, 255, 0), 2);
-					if (imagecount == 0)
-					{
-						airtime_clock2 = clock(); // start timer for first point
-						putText(movingobjects, "Time(ms): 0", pointlist2[imagecount2], 1, 1, Scalar(255, 0, 0), 2);
-					}
-					else
-					{
-						int timelaspe = clock() - airtime_clock2;
-						putText(movingobjects, "Time(ms): " + to_string(timelaspe), pointlist2[imagecount2], 1, 1, Scalar(255, 0, 0), 2);
-					}
-					//putText(TrackerImage, "Tracking object at (" + intToString(xpos) + "," + intToString(ypos) + ")", pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
-					if (imagecount > 0)
-					{
-						line(movingobjects, pointlist[imagecount - 1], pointlist[imagecount], Scalar(0, 255, 0), 2);
-					}
-					imagecount++;
-				}
+				minEllipse[i] = fitEllipse(Mat(contours[i]));
+				if ((((2 * minEllipse[i].size.height + 2 * minEllipse[i].size.width)* (2 * minEllipse[i].size.height + 2 * minEllipse[i].size.width))/(minEllipse[i].size.height * minEllipse[i].size.width)) > 0.25)
+					ellipse(movingobjects, minEllipse[i], Scalar(255, 255, 0));
+				//drawContours(movingobjects, contours, i, Scalar(40,100,55));
 			}
-			return 1;
 		}
-		return 0; // largest object is too small probably just noise
 	}
-
-	else // no object detected
-		return 0;
+	return 0;
 }
 
-/*for (int i = 0; i < contours.size(); i++) /////// MOVE ELSEWHERE
-{
-if (contours[i].size() > 20 && contours[i].size() < 300)
-{
-minEllipse[i] = fitEllipse(Mat(contours[i]));
-}
-//minEllipse.at(0).
-}
-for (int i = 0; i < contours.size(); i++)
-{
-//	drawContours(movingobjects, contours,
-//	i, Scalar(40,100,55));
-ellipse(movingobjects, minEllipse[i], Scalar(255, 255, 0));
-}
-*/
 
 //update the objects positions by changing the 'theObject' array values
 /*	theObject[0] = xpos, theObject[1] = ypos;
@@ -292,22 +370,47 @@ line(TrackerImage, Point(x, y), Point(x + 25, y), Scalar(0, 255, 0), 2);
 //imshow("TrackerImage", TrackerImage);
 //imwrite("trackingH"+intToString(imagecount)+".png", cameraFeed, compression_params);
 
-
+// INPUT: Grayimage, OUTPUT: Thresholdimage
+// for detecting moving objects
 int Algorithim1(Mat GraySource1, Mat GraySource2, Mat &thresholdImage) {
 	Mat differenceImage;
-	Mat movingobjects;
-
-	GaussianBlur(GraySource1, GraySource1, Size(9, 9), 2, 2);
 	//perform frame differencing with the sequential images. 
 	absdiff(GraySource1, GraySource2, differenceImage);
+	//imshow("diff", differenceImage);
 	//threshold intensity image at a given sensitivity value
 	threshold(differenceImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
 	//blur the image to get rid of the noise. This will output an intensity image
 	blur(thresholdImage, thresholdImage, Size(BLUR_SIZE, BLUR_SIZE));
 	//threshold again to obtain binary image from blur output
 	threshold(thresholdImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
-
 	return 0;
+}
+//
+int Algorithim2(Mat GraySource1, Mat &thresholdImage) {
+	int thresh = 50;
+	
+	GaussianBlur(GraySource1, GraySource1, Size(9, 9), 2, 2);
+	Canny(GraySource1, thresholdImage, thresh, thresh * 2, 3);
+	return 0;
+}
+
+void MyCallbackForContrast(int iValueForContrast, void *userData)
+{
+	Mat dst;
+	int iValueForBrightness = *(static_cast<int*>(userData));
+
+	//Calculating brightness and contrast value
+	int iBrightness = iValueForBrightness - 50;
+	double dContrast = iValueForContrast / 50.0;
+
+	//Calculated contrast and brightness value
+	cout << "MyCallbackForContrast : Contrast=" << dContrast << ", Brightness=" << iBrightness << endl;
+
+	//adjust the brightness and contrast
+	//src.convertTo(dst, -1, dContrast, iBrightness);
+
+	//show the brightness and contrast adjusted image
+	imshow("My Window", dst);
 }
 
 int main() {
@@ -344,28 +447,65 @@ int main() {
 	float fps;
 	const string filepath = "test.avi"; //C:\Users\Benjamin\Desktop
 	VideoWriter output_cap;
+	const string videopath = "ballthrow2.avi";
 
 	CircularBuffer<Mat> RGB_Buffer(50, "RGB_Buffer",0); // only 50 right now
 	CircularBuffer<Mat> RGB_Buffer2(50, "RGB_Buffer2",0);
 	CircularBuffer<Mat> Gray_Buffer(50, "Gray_Buffer",1);
 	CircularBuffer<Mat> Gray_Buffer2(50, "Gray_Buffer2",1);
+
+	// KALMANN
+	Mat img(RESOLUTION, CV_8UC3);
+	KalmanFilter KF(5, 1, 0);
+	Mat state(5, 1, CV_32F); /* (phi, delta_phi) */
+	Mat processNoise(5, 1, CV_32F);
+	Mat measurement = Mat::zeros(1, 1, CV_32F);
+
 //END DECLARATIONS
 
 // START INIT
+	// BLOB
+	// Setup SimpleBlobDetector parameters.
+	SimpleBlobDetector::Params params;
+
+	// Change thresholds
+	params.minThreshold = 0;//10
+	params.maxThreshold = 255;//20
+
+	// Filter by Area.
+	params.filterByArea = true;
+	params.minArea = 10;
+	params.maxArea = 50000;
+
+	// Filter by Circularity
+	params.filterByCircularity = true;
+	params.minCircularity = 0.1;
+
+	// Filter by Convexity
+	params.filterByConvexity = true;
+	params.minConvexity = 0.7;
+
+	// Filter by Inertia
+	params.filterByInertia = true;
+	params.minInertiaRatio = 0.01;
+	Ptr<SimpleBlobDetector> detector = SimpleBlobDetector::create(params);
+	// KALMANN
+	randn(state, Scalar::all(0), Scalar::all(0.1));
+	KF.transitionMatrix = (Mat_<float>(5, 5) << 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1);
+	setIdentity(KF.measurementMatrix);
+	setIdentity(KF.processNoiseCov, Scalar::all(1e-5));
+	setIdentity(KF.measurementNoiseCov, Scalar::all(1e-1));
+	setIdentity(KF.errorCovPost, Scalar::all(1));
+	randn(KF.statePost, Scalar::all(0), Scalar::all(0.1));
+	//
 	//create Background Subtractor objects
-	pMOG2 = createBackgroundSubtractorMOG2 (30, 16.0, false);//MOG2 approach
+	pMOG2 = createBackgroundSubtractorMOG2 (255, 16.0, false);//MOG2 approach
 	//pMOG2 = createBackgroundSubtractorKNN(500, 400.0, false);
 	//namedWindow("Hough Circle Transform Demo", CV_WINDOW_AUTOSIZE);
 	capture.open(701); // 700 -> directshow + index, index 0 for laptop webcam, 1 for usb webcam usually
-//	Sleep(500);
+					   //	Sleep(500);
+	//capture.open(videopath);
 	if (!capture.isOpened()) {
-		cout << "ERROR ACQUIRING VIDEO FEED\n";
-		getchar();
-		return -1;
-	}
-
-	capture2.open(702); //"http://umd:umd@192.168.0.101/video.cgi?.mjpg"
-	if (!capture2.isOpened()) {
 		cout << "ERROR ACQUIRING VIDEO FEED\n";
 		getchar();
 		return -1;
@@ -374,18 +514,34 @@ int main() {
 	capture.set(CV_CAP_PROP_FRAME_WIDTH, RESOLUTION.width); // 1280 for intergrated webcam, 1080 for external webcam
 	capture.set(CV_CAP_PROP_FRAME_HEIGHT, RESOLUTION.height);
 	capture.set(CV_CAP_PROP_FPS, 30); // changes property but not camera fps 
-	//capture.set(CV_CAP_PROP_EXPOSURE, 99); // does nothing
+	////capture.set(CV_CAP_PROP_GAIN, 5);
+	////capture.set(CV_CAP_PROP_EXPOSURE, 5);
+	//	//capture.set(CV_CAP_PROP_EXPOSURE, 99); // does nothing
+	//capture.set(CV_CAP_PROP_GAIN, 5);
+	//capture.set(CV_CAP_PROP_EXPOSURE, -1);
+
+#ifdef 2NDCAMERA
+	capture2.open(702); //"http://umd:umd@192.168.0.101/video.cgi?.mjpg"
+	if (!capture2.isOpened()) {
+		cout << "error acquiring video feed\n";
+		getchar();
+		return -1;
+	}
+	//capture2.set(CV_CAP_PROP_FOURCC, CV_FOURCC('M', 'J', 'P', 'G')); // doesn't set
 	capture2.set(CV_CAP_PROP_FRAME_WIDTH, RESOLUTION.width); // 1280 for intergrated webcam, 1080 for external webcam
 	capture2.set(CV_CAP_PROP_FRAME_HEIGHT, RESOLUTION.height);
 	capture2.set(CV_CAP_PROP_FPS, 30); // changes property but not camera fps 
 
+#endif
+
 	// First initialize to get at least one previous frame
-	while (!capture.read(RGB_Buffer.increment()));
-	while (!capture2.read(RGB_Buffer2.increment()));
-	cvtColor(RGB_Buffer.current(), Gray_Buffer.increment(), COLOR_BGR2GRAY);
-	cvtColor(RGB_Buffer2.current(), Gray_Buffer2.increment(), COLOR_BGR2GRAY);
+	while (!capture.read(RGB_Buffer.current())); // preload buffer so we have a previous frame  on 1st loop
+	cvtColor(RGB_Buffer.current(), Gray_Buffer.current(), COLOR_BGR2GRAY);
+#ifdef 2NDCAMERA
+		while (!capture2.read(RGB_Buffer2.current()));	cvtColor(RGB_Buffer2.current(), Gray_Buffer2.current(), COLOR_BGR2GRAY);
+#endif
 
-
+#ifdef OUTPUTCAP
 	int debug = output_cap.open(filepath,
 		CV_FOURCC_MACRO('M','J','P','G'), //YUYV
 	capture.get(CV_CAP_PROP_FPS),
@@ -400,73 +556,160 @@ int main() {
 			 capture.get(CV_CAP_PROP_FRAME_WIDTH) << endl;
 		 return -1;
 	 }
+#endif
+	 Mat kernel = (Mat_<int>(5, 5) <<
+		 -1, -1, -1, -1, 0,
+		 -1, -1, -1, 0, 1,
+		 -1, -1, 0, 1, 1,
+		 -1, 0, 1, 1, 1,
+		 0, 1, 1, 1, 1);
+
+	 // TRACKBARS
+	 // Change thresholds
+	 params.minThreshold = 0;//10
+	 params.maxThreshold = 255;//20
+
+							   // Filter by Area.
+	 params.filterByArea = true;
+	 params.minArea = 10;
+	 params.maxArea = 50000;
+
+	 // Filter by Circularity
+	 params.filterByCircularity = true;
+	 params.minCircularity = 0.4;
+
+	 // Filter by Convexity
+	 params.filterByConvexity = true;
+	 params.minConvexity = 0.7;
+
+	 // Filter by Inertia
+	 params.filterByInertia = true;
+	 params.minInertiaRatio = 0.01;
+
+	 //Create trackbar to change contrast
+	 int minThreshold = 0;
+	 createTrackbar("minThreshold", "My Window", &minThreshold, 255);
+
  // END INIT
+
+	 // MAIN LOOP
 	while (1) { // capture and process loop
-		fps = 1000 / (1 + clock() - last_time);
+		fps = 1000 / (1 + clock() - last_time); // time stuff
 		last_time = clock();
-
-		//capture.read(image_array[toggle]);
-		capture.grab();
-		capture2.grab();
-		capture.retrieve(RGB_Buffer.increment());
-		capture2.retrieve(RGB_Buffer2.increment());
-
-		cvtColor(RGB_Buffer.current(), Gray_Buffer.increment(), COLOR_BGR2GRAY);
-		cvtColor(RGB_Buffer2.current(), Gray_Buffer2.increment(), COLOR_BGR2GRAY);
-
-		
-		//pMOG2->apply(Gray_Buffer.current(), thresholdImage);
-		Algorithim1(Gray_Buffer.current(), Gray_Buffer.previous(), thresholdImage);
-		Algorithim1(Gray_Buffer2.current(), Gray_Buffer2.previous(), thresholdImage2);
-
-
-
-	//	*contour_drawing = Scalar(0,0,0);
-		//searchForMovement(*thresholdImage, *grayImage1, *contour_drawing);
-//		if(searchForMovement(*thresholdImage, *grayImage1, 1) == 1 && trackingEnabled)
-		//	output_cap.write(TrackerImage); // tracking en
-			//update the background model
-
-		/// Apply the erosion operation
-	//	erode(*grayImage1, erosion_dst, erode_element);
-
-		/// Apply the dilation operation
-	//	dilate(erosion_dst, dilation_dst, dilation_element);
-	//	imshow("Dilation Demo", dilation_dst);
-
-
-		
-	//	imshow("MOG2", fgMaskMOG2);
-
 		cout << "FPS: " << fps << endl; // faster than draw??
-		
+		framecount++; 
 
-		//imshow("movingobjects", *contour_drawing);
-		//putText(*grayImage1, "FPS: " + to_string(fps), textcenter3, fontFace, fontScale, Scalar::all(255), thickness, 5); // DONT DRAW ON GRAY OR RGB IMAGES BECAUSE THEY ARE STORED FOR NEXT CYCLE
+		capture.grab(); // two grabs right next to each other to maximize synchronization of frames
+#ifdef 2NDCAMERA
+		capture2.grab();
+#endif
+		capture.retrieve(RGB_Buffer.store()); //decode image and store in  RGB circular buffer
+#ifdef 2NDCAMERA
+		capture2.retrieve(RGB_Buffer2.store());
+#endif
+
+		imshow("RGB1", RGB_Buffer.current()); //show our captured frame
+#ifdef 2NDCAMERA
+		imshow("RGB2", RGB_Buffer2.current()); 
+#endif
+		cvtColor(RGB_Buffer.current(), Gray_Buffer.store(), COLOR_BGR2GRAY); // convert RGB image to grayscale
+		//	imshow("Gray1", Gray_Buffer.current())
+
+		cvtColor(RGB_Buffer2.current(), Gray_Buffer2.store(), COLOR_BGR2GRAY);
+		//	imshow("Gray2", Gray_Buffer2.current()); 
+		
+	Algorithim1(Gray_Buffer.current(), Gray_Buffer.previous(), thresholdImage);
+	imshow("Thresh1", thresholdImage);
+#ifdef 2NDCAMERA
+	Algorithim1(Gray_Buffer2.current(), Gray_Buffer2.previous(), thresholdImage2);
+#endif
+
 		if (trackingEnabled)
 		{
-			searchForMovement(thresholdImage, movingobjects);
-			searchForMovement(thresholdImage2, movingobjects2);
+			searchForMovement(thresholdImage, movingobjects, 1);
 			imshow("TrackerImage", movingobjects);
+			
+			searchForMovement(thresholdImage2, movingobjects2, 2);
 			imshow("TrackerImage2", movingobjects2);
 		}
-		//show our captured frame
-	//	imshow("RGB1", *RGB_Buffer.current()); 
-	//	imshow("RGB2", *RGB_Buffer2.current()); 
-		imshow("Gray1", Gray_Buffer.current()); 
-	//	imshow("Gray2", *Gray_Buffer2.current()); 
-	//	imshow("Thresh1", thresholdImage);
-	//	imshow("Thresh2", thresholdImage2); 
-		
-		
-		//check to see if a button has been pressed.
-		//this 10ms delay is necessary for proper operation of this program 
-		//if removed, frames will not have enough time to referesh and a blank 
-		//image will appear. BUT THATS FUCKING INCOMPLETE!
-		char key = waitKey(5);
-		switch (key) {
 
+///////// TEST CODE START
+		// KALMANN
+		//cvtColor(RGB_Buffer.current(), Gray_Buffer.store(), COLOR_BGR2GRAY);
+		//Algorithim1(Gray_Buffer.current(), Gray_Buffer.previous(), thresholdImage);
+		//searchForMovement(thresholdImage, movingobjects);
+		//		img = RGB_Buffer.current();
+		//		Point2f center(trackedObject[0], trackedObject[1]);//center(img.cols*0.5f, img.rows*0.5f);
+		//		float R = img.cols / 3.f;
+		//		double stateAngle = state.at<float>(0);
+		//		Point statePt = pointlist[imagecount];//calcPoint(center, R, stateAngle);
+		//
+		//		Mat prediction = KF.predict();
+		//		double predictAngle = prediction.at<float>(0);
+		//		Point predictPt = calcPoint(center, R, predictAngle);
+		//
+		//		randn(measurement, Scalar::all(0), Scalar::all(KF.measurementNoiseCov.at<float>(0)));
+		//
+		//		// generate measurement
+		//		measurement += KF.measurementMatrix * state;
+		//
+		//		double measAngle = measurement.at<float>(0);
+		//		Point measPt = calcPoint(center, R, measAngle);
+		//
+		//		// plot points
+		//#define drawCross( center, color, d )                                        \
+		//                line( img, Point( center.x - d, center.y - d ),                          \
+//                             Point( center.x + d, center.y + d ), color, 1, LINE_AA, 0); \
+//                line( img, Point( center.x + d, center.y - d ),                          \
+//                             Point( center.x - d, center.y + d ), color, 1, LINE_AA, 0 )
+//
+//		//img = Scalar::all(0);
+//		drawCross(statePt, Scalar(255, 255, 255), 3);
+//		drawCross(measPt, Scalar(0, 0, 255), 3);
+//		drawCross(predictPt, Scalar(0, 255, 0), 3);
+//		line(img, statePt, measPt, Scalar(0, 0, 255), 3, LINE_AA, 0);
+//		line(img, statePt, predictPt, Scalar(0, 255, 255), 3, LINE_AA, 0);
+//
+//		if (theRNG().uniform(0, 4) != 0)
+//			KF.correct(measurement);
+//
+//		randn(processNoise, Scalar(0), Scalar::all(sqrt(KF.processNoiseCov.at<float>(0, 0))));
+//		state = KF.transitionMatrix*state + processNoise;
+//
+//		imshow("Kalman", img);
+// KALMANN END
+
+//	pMOG2->apply(Gray_Buffer.current(), thresholdImage);
+
+
+		// detect!
+//		vector<cv::KeyPoint> keypoints;
+		//detector->detect(thresholdImage, keypoints);
+	//	Mat img_keypoints_1;
+	//	drawKeypoints(thresholdImage, keypoints, img_keypoints_1, Scalar(255, 255, 255), DrawMatchesFlags::DEFAULT);
+		//imshow("Keypoints 1", img_keypoints_1);
+		//	imshow("Thresh2", thresholdImage2); 
+	//	Mat dst;
+	//	Point anchor = Point(-1, -1);
+	//	int delta = 0;
+	//	filter2D(RGB_Buffer.current(), dst, -1, kernel, anchor, delta, BORDER_DEFAULT);
+		//imshow("emboss", dst);
+	//	Algorithim2(Gray_Buffer.current(), thresholdImage);
+	//	Algorithim2(Gray_Buffer2.current(), thresholdImage2);
+	
+	//	searchForCircles(thresholdImage, movingobjects);
+		//putText(*grayImage1, "FPS: " + to_string(fps), textcenter3, fontFace, fontScale, Scalar::all(255), thickness, 5); // DONT DRAW ON GRAY OR RGB IMAGES BECAUSE THEY ARE STORED FOR NEXT CYCLE
+//////////// TEST CODE END /////////////////////////////
+
+#ifdef OUTPUTCAP		
+	output_cap.write(RGB_Buffer.current());
+#endif
+		// start keyboard interface
+		char key = waitKey(1);
+		switch (key) {
 		case 'q': //'esc' key has been pressed, exit program.
+			output_cap.release();
+			capture.release();
 			return 0;
 		case 't': //'t' has been pressed. this will toggle tracking
 			trackingEnabled = !trackingEnabled;
@@ -485,7 +728,6 @@ int main() {
 				while (pause == true) {
 					//stay in this loop until 
 					switch (waitKey()) {
-						//a switch statement inside a switch statement? Mind blown.
 					case 'p':
 						//change pause back to false
 						pause = false;
@@ -493,7 +735,6 @@ int main() {
 						break;
 					}
 				}
-
 			}
 		case 'r' :  // refresh the drawn points
 			imagecount = 0;
@@ -502,12 +743,7 @@ int main() {
 			RGB_Buffer2.current().copyTo(movingobjects2);
 			break;
 		}
-
+		// end keyboad interface
 	}
-	//release the capture before re-opening and looping again.
-//	capture.release();
-//	output_cap.release();
-
 	return 0;
-
 }
