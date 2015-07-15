@@ -23,7 +23,7 @@
 
 using namespace cv;
 using namespace std;
-//#define 2NDCAMERA
+//#define SECONDCAMERA
 #define OUTPUTCAP
 // START GLOBALS
 //our sensitivity value to be used in the absdiff() function
@@ -173,12 +173,26 @@ private:
 
 };
 
-int circlecheck(Point testpoint)
-{
-
-	return 0;
+Mat Window(Point testpoint, Mat &testimage, Size windowsize)
+{ // assumes same pixel format of input as output
+	//Range check
+	int rowwindow = windowsize.height / 2;
+	int colwindow = windowsize.width / 2;
+	int lowerboundrow = testpoint.x - rowwindow < 0 ? 0 : testpoint.x - rowwindow;
+	int upperboundrow = testpoint.x + rowwindow > testimage.rows ? testimage.rows : testpoint.x + rowwindow;
+	int lowerboundcolumn = testpoint.y - colwindow < 0 ? 0 : testpoint.y - colwindow;
+	int upperboundcolumn = testpoint.y + colwindow < testimage.cols ? testimage.cols : testpoint.y + colwindow;
+	Mat window = testimage(Range(lowerboundrow, upperboundrow), Range(lowerboundcolumn, upperboundcolumn));
+	return window;
 }
-
+void on_mouse(int e, int x, int y, int d, void *ptr)
+{
+	if (e != CV_EVENT_LBUTTONDOWN)
+		return;
+	Point*p = (Point*)ptr;
+	p->x = x;
+	p->y = y;
+}
 //int to string helper function
 string intToString(int number) {
 
@@ -223,18 +237,15 @@ int searchForMovement(Mat &thresholdImage, Mat &movingobjects, int camera = 1) {
 			//	imwrite("rectangle" + intToString(framecount) + ".png", movingobjects);
 				circularratio = (float)objectBoundingRectangle.width / objectBoundingRectangle.height;
 
-
 				float threshold = 3; 
 			//	if (circularratio > (float)1/threshold || circularratio < (float)1*threshold)// (circularratio > 1 - threshold || circularratio < 1 + threshold)  //then roundness check
 			//	{ // we think this a moving circle now
 				int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
 				int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+				circle(movingobjects, Point(xpos, ypos), 20, Scalar(255, 255, 255), 2);
 				if (camera == 1)
 				{
-					pointlist[imagecount] = Point(xpos, ypos); //.at(imagecount,imagecount);
-					circle(movingobjects, pointlist[imagecount], 20, Scalar(255, 255, 255), 2);
-				//	imwrite("circle" + intToString(framecount) + ".png", movingobjects);
-					
+					pointlist[imagecount] = Point(xpos, ypos); 
 					if (imagecount > 0)
 					{
 						line(movingobjects, pointlist[imagecount - 1], pointlist[imagecount], Scalar(255, 255, 255), 2);
@@ -243,15 +254,12 @@ int searchForMovement(Mat &thresholdImage, Mat &movingobjects, int camera = 1) {
 				}
 				if (camera == 2)
 				{
-					pointlist2[imagecount2] = Point(xpos, ypos); //.at(imagecount,imagecount);
-					circle(movingobjects, pointlist2[imagecount2], 20, Scalar(255, 255, 255), 2);
-				//	imwrite("circle" + intToString(framecount) + ".png", movingobjects);
+					pointlist2[imagecount2] = Point(xpos, ypos);
 					if (imagecount > 0)
 					{
 						line(movingobjects, pointlist2[imagecount2 - 1], pointlist2[imagecount2], Scalar(255, 255, 255), 2);
 					}
 					imagecount2++;
-
 				}
 			//	}
 			}
@@ -520,7 +528,7 @@ int main() {
 	//capture.set(CV_CAP_PROP_GAIN, 5);
 	//capture.set(CV_CAP_PROP_EXPOSURE, -1);
 
-#ifdef 2NDCAMERA
+#ifdef SECONDCAMERA
 	capture2.open(702); //"http://umd:umd@192.168.0.101/video.cgi?.mjpg"
 	if (!capture2.isOpened()) {
 		cout << "error acquiring video feed\n";
@@ -537,7 +545,7 @@ int main() {
 	// First initialize to get at least one previous frame
 	while (!capture.read(RGB_Buffer.current())); // preload buffer so we have a previous frame  on 1st loop
 	cvtColor(RGB_Buffer.current(), Gray_Buffer.current(), COLOR_BGR2GRAY);
-#ifdef 2NDCAMERA
+#ifdef SECONDCAMERA
 		while (!capture2.read(RGB_Buffer2.current()));	cvtColor(RGB_Buffer2.current(), Gray_Buffer2.current(), COLOR_BGR2GRAY);
 #endif
 
@@ -587,9 +595,11 @@ int main() {
 	 params.minInertiaRatio = 0.01;
 
 	 //Create trackbar to change contrast
-	 int minThreshold = 0;
-	 createTrackbar("minThreshold", "My Window", &minThreshold, 255);
-
+	 //int minThreshold = 0;
+	 //createTrackbar("minThreshold", "My Window", &minThreshold, 255);
+	 //Point p = Point(0,0);
+	 namedWindow("RGB");
+	 //setMouseCallback("RGB", on_mouse, &p);
  // END INIT
 
 	 // MAIN LOOP
@@ -600,16 +610,21 @@ int main() {
 		framecount++; 
 
 		capture.grab(); // two grabs right next to each other to maximize synchronization of frames
-#ifdef 2NDCAMERA
+#ifdef SECONDCAMERA
 		capture2.grab();
 #endif
 		capture.retrieve(RGB_Buffer.store()); //decode image and store in  RGB circular buffer
-#ifdef 2NDCAMERA
+#ifdef SECONDCAMERA
 		capture2.retrieve(RGB_Buffer2.store());
 #endif
 
-		imshow("RGB1", RGB_Buffer.current()); //show our captured frame
-#ifdef 2NDCAMERA
+		imshow("RGB", RGB_Buffer.current()); //show our captured frame
+	
+
+	//	Mat Widow = Window(p, RGB_Buffer.current(), Size(200,200));
+	//	imshow("window", Widow);
+
+#ifdef SECONDCAMERA
 		imshow("RGB2", RGB_Buffer2.current()); 
 #endif
 		cvtColor(RGB_Buffer.current(), Gray_Buffer.store(), COLOR_BGR2GRAY); // convert RGB image to grayscale
@@ -620,7 +635,7 @@ int main() {
 		
 	Algorithim1(Gray_Buffer.current(), Gray_Buffer.previous(), thresholdImage);
 	imshow("Thresh1", thresholdImage);
-#ifdef 2NDCAMERA
+#ifdef SECONDCAMERA
 	Algorithim1(Gray_Buffer2.current(), Gray_Buffer2.previous(), thresholdImage2);
 #endif
 
