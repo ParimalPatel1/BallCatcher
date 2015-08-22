@@ -8,7 +8,10 @@
 using namespace cv;
 using namespace ipp;
 using namespace std;
-#define RESOLUTION Size(320,240) // 640, 480
+#define RESOLUTION Size(640,480)
+const static int SENSITIVITY_VALUE = 20;
+//size of blur used to smooth the intensity image output from absdiff() function
+const static int BLUR_SIZE = 10;
 
 struct ballLoc
 {
@@ -18,10 +21,6 @@ struct ballLoc
 class objectTracker
 {
 public:
-//	LARGE_INTEGER StartingTime;
-//	LARGE_INTEGER EndingTime;
-	//LARGE_INTEGER ElapsedMicroseconds;
-	//LARGE_INTEGER Frequency;
 	int trackedObjects;
 	int ballcount;
 	LARGE_INTEGER Frequency;
@@ -41,13 +40,6 @@ public:
 		timestamp_t timestamp;
 	};
 	ballTrack trackerList[2][100]; 
-	struct ThreeDPoint
-	{
-		float x;
-		float y;
-		float z;
-	};
-	// 
 	void track(int objnum) // adds an object to be timed. assumes its the same object for now.
 	{
 		QueryPerformanceCounter(&trackerList[objnum][ballcount].timestamp.currentTime);
@@ -58,24 +50,11 @@ public:
 		}
 		else
 		{
-			trackerList[trackedObjects][ballcount].timestamp.ElapsedMicroseconds.QuadPart = trackerList[trackedObjects][ballcount].timestamp.currentTime.QuadPart - trackerList[trackedObjects][ballcount-1].timestamp.currentTime.QuadPart;
+			trackerList[trackedObjects][ballcount].timestamp.ElapsedMicroseconds.QuadPart = trackerList[trackedObjects][ballcount].timestamp.currentTime.QuadPart - trackerList[trackedObjects][ballcount - 1].timestamp.currentTime.QuadPart;
 			trackerList[trackedObjects][ballcount].timestamp.ElapsedMicroseconds.QuadPart *= 1000000;
 			trackerList[trackedObjects][ballcount].timestamp.ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
 		}
 		ballcount++;
-
-		if (ballcount == 14)
-			ballcount = 14;
-
-	
-
-		//// We now have the elapsed number of ticks, along with the
-		//// number of ticks-per-second. We use these values
-		//// to convert to the number of elapsed microseconds.
-		//// To guard against loss-of-precision, we convert
-		//// to microseconds *before* dividing by ticks-per-second.
-
-
 	}
 };
 
@@ -106,6 +85,11 @@ public:
 			for (int i = 0; i < buffersize; i++)
 				buffer[i] = Mat(RESOLUTION, CV_8UC1);
 			break;
+		case 2:
+			for (int i = 0; i < buffersize; i++)
+				buffer[i] = Mat(RESOLUTION, CV_8UC1);
+				//buffer[i] = Mat(Size(100,100), CV_8UC1);
+			break;
 		}
 		buffername = name;
 	};
@@ -113,18 +97,6 @@ public:
 		delete buffer;
 	};
 
-	type* buffer;
-	type* current_ptr;
-	type* previous_ptr;
-	type* next_ptr;
-	/*	int initialize(type source) // initialize the 1st element of the buffer to get things rolling
-	{
-	buffer[bufferstart] = source;
-	if (buffersize > 1)
-	{
-	buffer
-	}
-	} */
 	type current()
 	{
 		current_ptr = &buffer[current_frame];
@@ -145,7 +117,14 @@ public:
 		circulate(previous_frame);
 		circulate(current_frame);
 		circulate(next_frame);
-		return current(); //current is next, so store there. PROBLEM
+		return current(); 
+	}
+	type backspace()
+	{
+		decirculate(previous_frame);
+		decirculate(current_frame);
+		decirculate(next_frame);
+		return current();
 	}
 	void set(type &source)
 	{
@@ -159,7 +138,12 @@ public:
 	{
 		absdiff(buffer[current_frame], buffer[previous_frame], diff);
 	}
+
 protected:
+	type* buffer;
+	type* current_ptr;
+	type* previous_ptr;
+	type* next_ptr;
 private:
 	int buffersize = 1;
 	int previous_frame = 0;
@@ -172,6 +156,10 @@ private:
 	void circulate(int &a)
 	{
 		a = a + 1 == bufferend ? bufferstart : a + 1;
+	}
+	void decirculate(int &a)
+	{
+		a = a - 1 == bufferstart - 1? bufferend - 1: a - 1;
 	}
 
 };
@@ -188,7 +176,7 @@ public:
 	{
 		RGB_Buffer = new CircularBuffer<Mat>(50, "RGB_Buffer", 0); // 50 = buffersize, 0 = RGB
 		Gray_Buffer = new CircularBuffer<Mat>(50, "Gray_Buffer", 1); // 50 = buffersize, 1 = grayscale
-		Disp_Buffer = new CircularBuffer<Mat>(50, "Disparity_Buffer", 1); // 50 = buffersize, 1 = grayscale
+		Disp_Buffer = new CircularBuffer<Mat>(50, "Disparity_Buffer", 2); // 50 = buffersize, 2 = resized grayscale
 		cam.open(capid);
 		if (!cam.isOpened()) {
 			cout << "ERROR ACQUIRING VIDEO FEED for id " + to_string(capid) + " \n";
@@ -228,13 +216,14 @@ public:
 	{
 		RGB_Buffer->~CircularBuffer();
 	}
+	Mat background_image;
 
 };
 class ImagePipeline
 {
 public:
 	int(*detect)(Mat, Mat ,ballLoc&);
-	int(*track)(Mat &SearchImage, Mat &movingobjects, ballLoc &ballspotted)
+	int(*track)(Mat&, Mat &, ballLoc&)
 	{
 	};
 	int(*project)(Mat, Mat, Mat&)
@@ -284,6 +273,9 @@ public:
 	{
 		for (int a = 0; a < numofcams; a++)
 		{
+			//Mat blurImage;
+			//cvtColor(sources[a]->RGB_Buffer->current(), blurImage, COLOR_BGR2GRAY);
+			//blur(blurImage, sources[a]->Gray_Buffer->store(), Size(BLUR_SIZE, BLUR_SIZE));
 			cvtColor(sources[a]->RGB_Buffer->current(), sources[a]->Gray_Buffer->store(), COLOR_BGR2GRAY);
 		}
 	}
@@ -306,9 +298,9 @@ public:
 		int ballfoundcount = 0;
 		for (int a = 0; a < numofcams; a++)
 		{
-			ballfoundcount += detect(sources[a]->Gray_Buffer->current(), sources[a]->Gray_Buffer->previous(), objTracker.trackerList[a][objTracker.ballcount].ball_location); // check left, if no ball found
+			ballfoundcount += detect(sources[a]->Gray_Buffer->current(), sources[a]->background_image, objTracker.trackerList[a][objTracker.ballcount].ball_location); // check left, if no ball found
 		}
-		if (ballfoundcount == numofcams)
+		if (ballfoundcount >= numofcams)
 		{
 			tracking();
 			return 1; //ball found in every camera, start tracking
@@ -388,8 +380,8 @@ int param_2 = 100; /* Threshold for center detection.*/	const int param_2_MAX = 
 int min_radius = 0; /* Minimum radio to be detected.If unknown, put zero as default. */	const int min_radius_MAX = 40;
 int max_radius = 0; /*Maximum radius to be detected.If unknown, put zero as default */	const int max_radius_MAX = 100;
 
-int minThreshold = 153;
-int maxThreshold = 189;
+int minThreshold = 133;
+int maxThreshold = 230;
 int filterByArea = true;
 int minArea = 10;
 int maxArea = 50000;
@@ -402,3 +394,105 @@ int maxConvexity = 10;
 int filterByInertia = true;
 int minInertiaRatio = 1;
 int maxInertiaRatio = 100;
+const string trackbarWindowName2 = "BlobTrackbars";
+Ptr<SimpleBlobDetector> detector;
+
+void Blob_update()
+{
+	//
+	SimpleBlobDetector::Params params;
+	int itemp = 0;
+	float ftemp = 0.0;
+	bool btemp = true;
+	// Change thresholds
+	params.minThreshold = getTrackbarPos("minThreshold", trackbarWindowName2);
+	params.maxThreshold = getTrackbarPos("maxThreshold", trackbarWindowName2);
+
+	// Filter by Area.
+	btemp = getTrackbarPos("filterByArea", trackbarWindowName2) == 1 ? true : false;
+	params.filterByArea = btemp;
+	params.minArea = getTrackbarPos("minArea", trackbarWindowName2);
+	params.maxArea = getTrackbarPos("maxArea", trackbarWindowName2);
+
+	// Filter by Circularity
+	btemp = getTrackbarPos("filterByCircularity", trackbarWindowName2) == 1 ? true : false;
+	params.filterByCircularity = btemp;
+	ftemp = (float)getTrackbarPos("minCircularity", trackbarWindowName2) / 10.0;
+	params.minCircularity = ftemp;
+	ftemp = (float)getTrackbarPos("maxCircularity", trackbarWindowName2) / 10.0;
+	params.maxCircularity = ftemp;
+
+	// Filter by Convexity
+	btemp = getTrackbarPos("filterByConvexity", trackbarWindowName2) == 1 ? true : false;
+	params.filterByConvexity = btemp;
+	ftemp = (float)getTrackbarPos("minConvexity", trackbarWindowName2) / 10.0;
+	params.minConvexity = ftemp;
+	ftemp = (float)getTrackbarPos("maxConvexity", trackbarWindowName2) / 10.0;
+	params.maxConvexity = ftemp;
+
+	// Filter by Inertia
+	btemp = getTrackbarPos("filterByInertia", trackbarWindowName2) == 1 ? true : false;
+	params.filterByInertia = btemp;
+	ftemp = (float)getTrackbarPos("minInertiaRatio", trackbarWindowName2) / 100.0;
+	params.minInertiaRatio = ftemp;
+	params.filterByColor = false;
+
+	detector = SimpleBlobDetector::create(params);
+}
+
+
+const int minThreshold_MAX = 254;
+const int maxThreshold_MAX = 255;
+const int filterByArea_MAX = 1;
+const int minArea_MAX = 300;
+const int maxArea_MAX = 80000;
+const int filterByCircularity_MAX = 1;
+const int minCircularity_MAX = 9;
+const int maxCircularity_MAX = 10;
+const int filterByConvexity_MAX = 1;
+const int minConvexity_MAX = 9;
+const int maxConvexity_MAX = 10;
+const int filterByInertia_MAX = 1;
+const int minInertiaRatio_MAX = 99;
+
+
+void on_trackbar2(int, void*)
+{
+	Blob_update();
+};//This function gets called whenever a trackbar position is changed
+void createTrackbars_Blob() { //Create window for trackbars
+	char TrackbarName[200];
+
+	// Create TrackBars Window
+	namedWindow("BlobTrackbars", 0);
+
+	// Create memory to store Trackbar name on window
+	sprintf(TrackbarName, "minThreshold");
+	sprintf(TrackbarName, "maxThreshold");
+	sprintf(TrackbarName, "filterByArea");
+	sprintf(TrackbarName, "minArea");
+	sprintf(TrackbarName, "maxArea");
+	sprintf(TrackbarName, "filterByCircularity");
+	sprintf(TrackbarName, "minCircularity");
+	sprintf(TrackbarName, "maxCircularity");
+	sprintf(TrackbarName, "filterByConvexity");
+	sprintf(TrackbarName, "minConvexity");
+	sprintf(TrackbarName, "maxConvexity");
+	sprintf(TrackbarName, "filterByInertia");
+	sprintf(TrackbarName, "minInertiaRatio");
+
+	////Create Trackbars and insert them into window
+	createTrackbar("minThreshold", trackbarWindowName2, &minThreshold, minThreshold_MAX, on_trackbar2);
+	createTrackbar("maxThreshold", trackbarWindowName2, &maxThreshold, maxThreshold_MAX, on_trackbar2);
+	createTrackbar("filterByArea", trackbarWindowName2, &filterByArea, filterByArea_MAX, on_trackbar2);
+	createTrackbar("minArea", trackbarWindowName2, &minArea, minArea_MAX, on_trackbar2);
+	createTrackbar("maxArea", trackbarWindowName2, &maxArea, maxArea_MAX, on_trackbar2);
+	createTrackbar("filterByCircularity", trackbarWindowName2, &filterByCircularity, filterByCircularity_MAX, on_trackbar2);
+	createTrackbar("minCircularity", trackbarWindowName2, &minCircularity, minCircularity_MAX, on_trackbar2);
+	createTrackbar("maxCircularity", trackbarWindowName2, &maxCircularity, maxCircularity_MAX, on_trackbar2);
+	createTrackbar("filterByConvexity", trackbarWindowName2, &filterByConvexity, filterByConvexity_MAX, on_trackbar2);
+	createTrackbar("minConvexity", trackbarWindowName2, &minConvexity, minConvexity_MAX, on_trackbar2);
+	createTrackbar("maxConvexity", trackbarWindowName2, &maxConvexity, maxConvexity_MAX, on_trackbar2);
+	createTrackbar("filterByInertia", trackbarWindowName2, &filterByInertia, filterByInertia_MAX, on_trackbar2);
+	createTrackbar("minInertiaRatio", trackbarWindowName2, &minInertiaRatio, minInertiaRatio, on_trackbar2);
+}

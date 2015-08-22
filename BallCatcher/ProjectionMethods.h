@@ -27,7 +27,7 @@ extern Ptr<StereoSGBM> sgbm;
 ////// STEREO
 /////////// TRACKBARS START
 //Setting StereoBM Parameters
-extern void Stereo_update(Ptr<StereoBM> bm);
+extern void Stereo_update();
 extern void on_trackbar(int, void*);
 extern void createTrackbars();
 
@@ -43,12 +43,6 @@ public:
 
 	void Stereo_Init()
 	{
-		int SADWindowSize = 9;
-		int numberOfDisparities = 16;
-		if (numberOfDisparities != 1 && numberOfDisparities < 1 || numberOfDisparities % 16 != 0)
-			return;
-		if (SADWindowSize != 1 && SADWindowSize < 1 || SADWindowSize % 2 != 1)
-			return;
 		// reading intrinsic parameters
 		FileStorage fs("intrinsics.yml", FileStorage::READ);
 		if (!fs.isOpened())
@@ -60,7 +54,6 @@ public:
 		fs["D1"] >> D1;
 		fs["M2"] >> M2;
 		fs["D2"] >> D2;
-
 		fs.open("extrinsics.yml", FileStorage::READ);
 		if (!fs.isOpened())
 		{
@@ -71,65 +64,60 @@ public:
 		fs["T"] >> T;
 		// outputs R1, R2, P1, P2
 		cv::stereoRectify(M1, D1, M2, D2, img_size, R, T, R1, R2, P1, P2, Q, CALIB_ZERO_DISPARITY, -1, img_size, &roi1, &roi2);
+		Rect DispROI = getValidDisparityROI(roi1, roi2, MinDisparity, NumberOfDisparities * 16, SADWindowSize);
 
 		cv::initUndistortRectifyMap(M1, D1, R1, P1, img_size, CV_16SC2, map11, map12); 
 		cv::initUndistortRectifyMap(M2, D2, R2, P2, img_size, CV_16SC2, map21, map22);
 
-		numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((img_size.width / 8) + 15) & -16;
-
-		sgbm->setPreFilterCap(63);
-		int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;
-		sgbm->setBlockSize(sgbmWinSize);
+		
+		sgbm->setPreFilterCap(PreFilterCap);
+		sgbm->setBlockSize(SADWindowSize*2+1);
 		int cn = map11.channels();
-
-		sgbm->setP1(8 * cn*sgbmWinSize*sgbmWinSize);
-		sgbm->setP2(32 * cn*sgbmWinSize*sgbmWinSize);
-		sgbm->setMinDisparity(0);
-		sgbm->setNumDisparities(numberOfDisparities);
-		sgbm->setUniquenessRatio(10);
-		sgbm->setSpeckleWindowSize(100);
-		sgbm->setSpeckleRange(32);
-		sgbm->setDisp12MaxDiff(1);
+		sgbm->setP1(8*cn*(SADWindowSize * 2 + 1)*(SADWindowSize * 2 + 1));
+		sgbm->setP2(32*cn*(SADWindowSize * 2 + 1)*(SADWindowSize * 2 + 1));
+		sgbm->setMinDisparity(MinDisparity);
+		sgbm->setNumDisparities(NumberOfDisparities * 16);
+		sgbm->setUniquenessRatio(UniquenessRatio); // 10
+		sgbm->setSpeckleWindowSize(SpeckleWindowSize); // 100
+		sgbm->setSpeckleRange(SpeckleRange); // 32
+		sgbm->setDisp12MaxDiff(Disp12MaxDiff); // 1
 		sgbm->setMode(StereoSGBM::MODE_HH ); // StereoSGBM::MODE_SGBM
 
-		//bm->setROI1(roi1);
-		//bm->setROI2(roi2);
-		//bm->setPreFilterCap(PreFilterCap);
-		//bm->setBlockSize(SADWindowSize > 0 ? SADWindowSize : 9);
-		//bm->setMinDisparity(MinDisparity);
-		//bm->setNumDisparities(numberOfDisparities);
-		//bm->setTextureThreshold(TextureThreshold);
-		//bm->setUniquenessRatio(UniquenessRatio);
-		//bm->setSpeckleWindowSize(SpeckleWindowSize);
-		//bm->setSpeckleRange(SpeckleRange);
-		//bm->setDisp12MaxDiff(Disp12MaxDiff);
+		bm->setROI1(roi1);
+		bm->setROI2(roi2);
+		bm->setPreFilterType(CV_STEREO_BM_XSOBEL);
+		bm->setPreFilterCap(PreFilterCap);
+		bm->setBlockSize(SADWindowSize * 2 + 1);
+		bm->setMinDisparity(MinDisparity);
+		bm->setNumDisparities(NumberOfDisparities * 16);
+		bm->setTextureThreshold(TextureThreshold);
+		bm->setUniquenessRatio(UniquenessRatio);
+		bm->setSpeckleWindowSize(SpeckleWindowSize);
+		bm->setSpeckleRange(SpeckleRange);
+		bm->setDisp12MaxDiff(Disp12MaxDiff);
 	}
 
 	//////// END STEREO INIT
-	Mat LeftRemap, RightRemap;
-	Mat disp, disp8;
-	// STEREO METHOD
-	void compute_Stereo(Mat Gray_Left, Mat Gray_Right, Mat &disparity)
-	{
-		// make sure left and right are same size
-		if (Gray_Left.size() != Gray_Right.size())
-			return;
-		remap(Gray_Left, LeftRemap, map11, map12, INTER_LINEAR);
-		remap(Gray_Right, RightRemap, map21, map22, INTER_LINEAR);
-		//	imshow("RGBmapL", LeftRemap);
-		//	imshow("RGBmapR", RightRemap);
-		//	cvtColor(LeftRemap, Gray_Left, COLOR_BGR2GRAY);
-		//	cvtColor(RightRemap, Gray_Right, COLOR_BGR2GRAY);
-		//	imshow("GL", Gray_Left);
-		//	imshow("GR", Gray_Right);
-			// REMAP WHY YOU NO WORK 		bm->compute(Gray_Left, Gray_Right, disp); because you need to remap RGB image, not grayscale
-		//	bm->compute(Gray_Left, Gray_Right, disp);
-		sgbm->compute(Gray_Left, Gray_Right, disp);
-		//	imshow("Disparity", disp);
-		normalize(disp, disparity, 0, 255, CV_MINMAX, CV_8U); // used to be disp8
-		//imshow("NormDisparity", disp8);
-		// Change image type from 8UC1 to 32FC1
+	//Mat LeftRemap, RightRemap;
 
+	void remap_Grey(Mat &Gray_Left, Mat &Gray_Right)
+	{
+		remap(Gray_Left, Gray_Left, map11, map12, INTER_LINEAR);
+		remap(Gray_Right, Gray_Right, map21, map22, INTER_LINEAR);
+	}
+	//Mat disp, disp8;
+	// STEREO METHOD
+	Mat compute_Stereo(Mat Gray_Left, Mat Gray_Right)
+	{
+		Mat disparity;
+		//// make sure left and right are same size
+		if (Gray_Left.size() != Gray_Right.size())
+			return disparity;
+	//	bm->compute(Gray_Left, Gray_Right, disparity);
+		sgbm->compute(Gray_Left, Gray_Right, disparity);
+		return disparity;
+
+		//imshow("Disparity", disparity);
 	}
 	// given the normalized disparity image (should be normalized ??), now generate threshold the image so only the ball's points remain.
 	// ignore any "black" points and average all the points to get the real 3D center point of the ball.
@@ -138,7 +126,7 @@ public:
 		// now project 3d points
 		cv::Mat disp32_bm = Mat(disparity.size(), CV_32F);
 		cv::Mat XYZ(disparity.size(), CV_32FC3);
-		disp8.convertTo(disp32_bm, CV_32F);
+		disparity.convertTo(disp32_bm, CV_32F);
 		reprojectImageTo3D(disparity, XYZ, Q, false, CV_32F);
 		//perspectiveTransform(disparity, XYZ, Q);
 		// XYZ is output, where to save??

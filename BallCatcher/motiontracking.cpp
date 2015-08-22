@@ -12,9 +12,7 @@
 //#define OUTPUTCAP
 // START GLOBALS
 //our sensitivity value to be used in the absdiff() function
-const static int SENSITIVITY_VALUE = 20;
-//size of blur used to smooth the intensity image output from absdiff() function
-const static int BLUR_SIZE = 10;
+
 
 int imagecount = 0;
 int framecount = 0;
@@ -27,24 +25,24 @@ bool trackingEnabled = false;
 Mat frame; //current frame
 int keyboard; //input from keyboard
 // END GLOBALS
-Ptr<SimpleBlobDetector> detector;
+
 void initblobs()
 {
 	//	 Setup SimpleBlobDetector parameters.
 	SimpleBlobDetector::Params params;
 
 	// Change thresholds
-	params.minThreshold = minThreshold;//10
-	params.maxThreshold = 255;//20
+	params.minThreshold = minThreshold;
+	params.maxThreshold = maxThreshold;
 
 							  // Filter by Area.
 	params.filterByArea = true;
-	params.minArea = 10;
+	params.minArea = 200;
 	params.maxArea = 50000;
 
 	// Filter by Circularity
 	params.filterByCircularity = true;
-	params.minCircularity = 0.1;
+	params.minCircularity = 0.3;
 	params.maxCircularity = 1.0;
 
 	// Filter by Convexity
@@ -66,28 +64,28 @@ int searchForBalls(Mat &SearchImage, Mat &movingobjects, ballLoc &ballspotted) {
 	int circlesfound = 0;
 	int blobsfound = 0;
 	//these two vectors needed for output of findContours
-	vector<Vec3f> circles;
-	HoughCircles(SearchImage, circles, CV_HOUGH_GRADIENT,
-		dp, min_dist, param_1, param_2, min_radius, max_radius); // going to be dependant on resolution and windowed image
-	circlesfound = circles.size();
-	if (circlesfound > 0)
-	{
-		int largestradius = 0;
-		for (int i = 0; i < circlesfound; i++)
-		{
-			ballspotted.radius = cvRound(circles[i][2]);
-			if (ballspotted.radius > largestradius)
-			{
-				largestradius = ballspotted.radius; // new largest keypoint
-				ballspotted.center = Point(cvRound(circles[i][0]), cvRound(circles[i][1]));
-			}
-			// draw the circle center
-			//	circle(movingobjects, ballspotted.center, 3, Scalar(0, 255, 0), -1, 8, 0);
-			// draw the circle outline
-			//	circle(movingobjects, ballspotted.center, ballspotted.radius, Scalar(0, 0, 255), 3, 8, 0);
-		}
-		return circlesfound;
-	}
+	//vector<Vec3f> circles;
+	//HoughCircles(SearchImage, circles, CV_HOUGH_GRADIENT,
+	//	dp, min_dist, param_1, param_2, min_radius, max_radius); // going to be dependant on resolution and windowed image
+	//circlesfound = circles.size();
+	//if (circlesfound > 0)
+	//{
+	//	int largestradius = 0;
+	//	for (int i = 0; i < circlesfound; i++)
+	//	{
+	//		ballspotted.radius = cvRound(circles[i][2]);
+	//		if (ballspotted.radius > largestradius)
+	//		{
+	//			largestradius = ballspotted.radius; // new largest keypoint
+	//			ballspotted.center = Point(cvRound(circles[i][0]), cvRound(circles[i][1]));
+	//		}
+	//		// draw the circle center
+	//		//	circle(movingobjects, ballspotted.center, 3, Scalar(0, 255, 0), -1, 8, 0);
+	//		// draw the circle outline
+	//		//	circle(movingobjects, ballspotted.center, ballspotted.radius, Scalar(0, 0, 255), 3, 8, 0);
+	//	}
+	//	return circlesfound;
+	//}
 	if (circlesfound == 0)
 	{
 		// detect!
@@ -96,8 +94,8 @@ int searchForBalls(Mat &SearchImage, Mat &movingobjects, ballLoc &ballspotted) {
 		blobsfound = keypoints.size();
 		if (blobsfound > 0)
 		{
-			//	drawKeypoints(SearchImage, keypoints, movingobjects, Scalar(0, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-
+			drawKeypoints(SearchImage, keypoints, movingobjects, Scalar(0, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+			imwrite("blobs" + to_string(framecount) + ".png", movingobjects);
 			int largestdiameter = 0;
 			for (int i = 0; i < blobsfound; i++)
 			{//assume the keypoint with the largest size is the ball
@@ -106,6 +104,7 @@ int searchForBalls(Mat &SearchImage, Mat &movingobjects, ballLoc &ballspotted) {
 					largestdiameter = keypoints[i].size; // new largest keypoint
 					ballspotted.center = Point(cvRound(keypoints[i].pt.x), cvRound(keypoints[i].pt.y));
 					ballspotted.radius = cvRound(keypoints[i].size / 2); // KeyPoint::size is a diameter
+					//keypoints[i].
 				}
 			}
 		}
@@ -120,7 +119,7 @@ int searchForMovement(Mat CurrGraySource, Mat PrevGraySource, ballLoc &ballspott
 	Mat blurImage;		// grayscale
 	//perform frame differencing with the sequential images. 
 	absdiff(PrevGraySource, CurrGraySource, differenceImage); // order matters here
-	//imshow("diff", differenceImage);
+//	imshow("diff", differenceImage);
 	//threshold intensity image at a given sensitivity value
 	threshold(differenceImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
 	//blur the image to get rid of the noise. This will output an intensity image
@@ -128,6 +127,8 @@ int searchForMovement(Mat CurrGraySource, Mat PrevGraySource, ballLoc &ballspott
 	//threshold again to obtain binary image from blur output
 	threshold(blurImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
 //	imshow("threshold", thresholdImage);
+	Mat ContourImage;
+	thresholdImage.copyTo(ContourImage);
 	bool objectDetected = false;
 	//these two vectors needed for output of findContours
 	vector< vector<Point> > contours;
@@ -135,7 +136,8 @@ int searchForMovement(Mat CurrGraySource, Mat PrevGraySource, ballLoc &ballspott
 	Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
 	//find contours of filtered image using openCV findContours function
 	//findContours(temp,contours,hierarchy,CV_RETR_CCOMP,CV_CHAIN_APPROX_SIMPLE );// retrieves all contours
-	findContours(thresholdImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);// retrieves external contours, CHANGES THRESHOLD IMAGE
+	findContours(ContourImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);// retrieves external contours, CHANGES THRESHOLD IMAGE
+	
 	//if contours vector is not empty, we have found some  moving objects
 	if (contours.size() > 0)
 	{
@@ -152,7 +154,7 @@ int searchForMovement(Mat CurrGraySource, Mat PrevGraySource, ballLoc &ballspott
 			Moments moment = moments((cv::Mat)contours[i]);
 			double area = moment.m00;
 			int MIN_OBJECT_AREA = 300; // resolution dependant or independat?
-			int MAX_OBJECT_AREA = thresholdImage.rows*thresholdImage.cols / 1.5; // 3/2 area of image
+			int MAX_OBJECT_AREA = 30000;//thresholdImage.rows*thresholdImage.cols / 1.5; // 3/2 area of image
 			//iteration and compare it to the area in the next iteration.
 			if (area > MIN_OBJECT_AREA && area<MAX_OBJECT_AREA && area>refArea) {
 				
@@ -160,9 +162,15 @@ int searchForMovement(Mat CurrGraySource, Mat PrevGraySource, ballLoc &ballspott
 			//	ballspotted.radius = 3;
 				objectFound = true;
 				refArea = area;
-				Mat tempnothing;
-				if (searchForBalls(CurrGraySource, tempnothing, ballspotted) == 1)
+				Mat drawimage;
+				CurrGraySource.copyTo(drawimage);
+				Mat SearchWindow = Window(Rect(Point2f(moment.m10 / moment.m00, moment.m01 / moment.m00), Size(200,200)), thresholdImage);
+				if (searchForBalls(SearchWindow, drawimage, ballspotted) >= 1)
+				{
+				//	imshow("Draw", drawimage);
 					return 1;
+				}
+		
 			}
 			else objectFound = false;
 		}
@@ -199,7 +207,7 @@ int searchForMovement(Mat CurrGraySource, Mat PrevGraySource, ballLoc &ballspott
 			//	//	rectangle(rects, objectBoundingRectangle, Scalar(255, 255, 255));
 			//	imshow("rect", rects);
 			//	//rectangle(movingobjects, objectBoundingRectang le, Scalar(255, 255, 255));
-			////	imwrite("rectangle" + intToString(framecount) + ".png", movingobjects);
+
 			//	circularratio = (float)objectBoundingRectangle.width / objectBoundingRectangle.height;
 			//	float threshold = 1; 
 			//	if (circularratio > (float)1/threshold || circularratio < (float)1*threshold)// (circularratio > 1 - threshold || circularratio < 1 + threshold)  //then roundness check
@@ -305,7 +313,7 @@ int main() {
 
 // START INIT
 
-	int capids[] = { 701, 702};
+	int capids[] = { 700 };//, 702 };//, 702};
 	string config = videopath;
 	//string config = "L";
 
@@ -313,8 +321,9 @@ int main() {
 	stereoset.Stereo_Init();
 	initblobs();
 	createTrackbars();
+	createTrackbars_Blob();
 	//void(*on_trackbar)(int, void*) = (void(*))Stereotime::Stereo_update;//(int, void*)
-	ImagePipeline Pipeline(2, capids, &config, searchForMovement, searchForBalls); // init with webcams source
+	ImagePipeline Pipeline(1, capids, &config, searchForMovement, searchForBalls); // init with webcams source
 //	ImagePipeline Pipeline(1, &config, &config, searchForMovement, searchForBalls); // init with video source
 	int trackmode = 0;
 #ifdef OUTPUTCAP
@@ -339,7 +348,7 @@ int main() {
 	 //createTrackbar("minThreshold", "My Window", &minThreshold, 255);
 	 //Point p = Point(0,0);
 	// namedWindow("RGB");
-//	 namedWindow("circles", 1);
+	// namedWindow("NormDisparity", CV_WINDOW_AUTOSIZE);
 	 //setMouseCallback("RGB", on_mouse, &p);
 	 Mat smalldisp;
 	 Mat bigdisp;								/// WAS 1
@@ -363,6 +372,11 @@ int main() {
  // END INIT
 	 Pipeline.cap(); // initial frame for each buffer so previous frame is available on first loop
 	 Pipeline.RGBtoGray();
+	// stereoset.remap_Grey(Pipeline.sources[0]->Gray_Buffer->current(), Pipeline.sources[1]->Gray_Buffer->current());
+	 Pipeline.sources[0]->Gray_Buffer->current().copyTo(Pipeline.sources[0]->background_image);
+	// Pipeline.sources[1]->Gray_Buffer->current().copyTo(Pipeline.sources[1]->background_image);
+	 Mat drawimage;
+	 Pipeline.sources[0]->Gray_Buffer->current().copyTo(drawimage);
 	////////// MAIN LOOP START
 	while (1) { // capture and process loop
 		fps = 1000 / (1 + clock() - last_time); // time stuff
@@ -372,10 +386,20 @@ int main() {
 
 		Pipeline.cap();
 		Pipeline.RGBtoGray();
-		imshow("L_RGB", Pipeline.sources[0]->RGB_Buffer->current());
+		Pipeline.detection();
+
+	//	stereoset.remap_Grey(Pipeline.sources[0]->Gray_Buffer->current(), Pipeline.sources[1]->Gray_Buffer->current());
+
+	//	imshow("L_RGB", Pipeline.sources[0]->RGB_Buffer->current());
+	//	imshow("R_RGB", Pipeline.sources[1]->RGB_Buffer->current());
 		//imshow("L_GRAY", Pipeline.sources[0]->Gray_Buffer->current());
-		imshow("R_RGB", Pipeline.sources[1]->RGB_Buffer->current());
 	//	imshow("R_GRAY", Pipeline.sources[1]->Gray_Buffer->current());
+		//Mat WindowL = Window(Rect(Point(100,100), Size(100, 100)), Pipeline.sources[0]->Gray_Buffer->current());
+		//Mat WindowR = Window(Rect(Point(100,100), Size(100, 100)), Pipeline.sources[1]->Gray_Buffer->current());
+		//	Mat dispare = stereoset.compute_Stereo(WindowL, WindowR);
+	//	Mat dispare = stereoset.compute_Stereo(Pipeline.sources[0]->Gray_Buffer->current(), Pipeline.sources[1]->Gray_Buffer->current());
+		//normalize(dispare, Pipeline.sources[1]->Disp_Buffer->store(), 0, 255, CV_MINMAX, CV_8U);
+	//	imshow("NormDisparity", Pipeline.sources[1]->Disp_Buffer->current());
 
 	//	warpAffine(Pipeline.sources[0]->Gray_Buffer->current(), ShiftedImage, TranslationMat, RESOLUTION);
 		//imshow("shift", ShiftedImage);
@@ -394,37 +418,24 @@ int main() {
 	// PIPELINE START
 		//if (trackmode == 0)
 		//{
-		//	if (Pipeline.detection() == 1)
-		//		trackmode = 1; // we found the ball, now track it!WWW
+		//	if ((Pipeline.detection() == 1)&&(Pipeline.objTracker.ballcount > 5))
+		//		trackmode = 1; // we found the ball, now track it!
 		//}
 		//else if (trackmode == 1)
 		//{
-		//	int q;
-		//	if (Pipeline.detection() == 1)
+		//	for (int i = 0; i < Pipeline.objTracker.ballcount; i++)
 		//	{
 		//		Mat WindowL = Window(Rect(Pipeline.objTracker.trackerList[0][Pipeline.objTracker.ballcount].ball_location.center, Size(100, 100)), Pipeline.sources[0]->Gray_Buffer->current());
 		//		Mat WindowR = Window(Rect(Pipeline.objTracker.trackerList[1][Pipeline.objTracker.ballcount].ball_location.center, Size(100, 100)), Pipeline.sources[1]->Gray_Buffer->current());
-		//		stereoset.compute_Stereo(WindowL, WindowR, Pipeline.sources[0]->Disp_Buffer->store());
-		//		imshow("stereo", Pipeline.sources[0]->Disp_Buffer->store());
+		//		Mat dispare = stereoset.compute_Stereo(WindowL, WindowR);
+		//		normalize(dispare, Pipeline.sources[1]->Disp_Buffer->store(), 0, 255, CV_MINMAX, CV_8U);
+		//		imwrite("NormDisparity" + to_string(i) + ".png", Pipeline.sources[1]->Disp_Buffer->current());
 		//	}
-		//	else
-		//		trackmode = 2;//we've lost the ball
-		//	//else
-		//	//	Pipeline.tracking();
-		//	//if (Pipeline.objTracker.ballcount > 6)
-		//	//{
-		//	//	trackmode = 2;	// we've decided this is the ball, now project
-		//	//}
+		//	trackmode = 2;
 		//}
 		//else if (trackmode == 2) // post calculation.
 		//{ // calculate trajectory using stereo and predict where ball is going to land.
-		//	for (int i = 0; i < Pipeline.objTracker.ballcount; i++)
-		//	{
-		//		Mat WindowL = Window(Rect(Pipeline.objTracker.trackerList[0][i].ball_location.center, Size(120, 120)), Pipeline.sources[0]->Gray_Buffer->current());
-		//		Mat WindowR = Window(Rect(Pipeline.objTracker.trackerList[1][i].ball_location.center, Size(120, 120)), Pipeline.sources[1]->Gray_Buffer->current());
-		//		stereoset.compute_Stereo(WindowL, WindowR, smalldisp);
-		//		imshow("sdisp", smalldisp);
-		//	}
+		//	int a = 0;
 		//}
 ///////////////	PIPELINE END
 	//	searchForCircles(thresholdImage, movingobjects);
@@ -467,8 +478,8 @@ int main() {
 			}
 		case 'c':
 			calibcount++;
-			imwrite("left" + to_string(calibcount) + ".jpg", Pipeline.sources[0]->RGB_Buffer->current()); // left
-			imwrite("right" + to_string(calibcount) + ".jpg", Pipeline.sources[1]->RGB_Buffer->current()); // right
+			imwrite("left" + to_string(calibcount) + ".png", Pipeline.sources[0]->Gray_Buffer->current()); // left
+			imwrite("right" + to_string(calibcount) + ".png", Pipeline.sources[1]->Gray_Buffer->current()); // right
 			break;
 		}
 		// end keyboad interface
