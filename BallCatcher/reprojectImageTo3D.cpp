@@ -33,7 +33,6 @@
 //int disp12MaxDiff			 = 1;	const int disp12MaxDiff_MAX		 	= 1;
 //
 ////Scope
-//void on_trackbar( int, void* ){}//This function gets called whenever a trackbar position is changed
 //void createTrackbars();
 //void resize_frame(Mat* frame1,Mat* frame2);
 //void change_resolution(VideoCapture* cap_l,VideoCapture* cap_r);

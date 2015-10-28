@@ -7,22 +7,18 @@
 
 
 
-#include "motiontracking.h"
+#include "motiontracking.hpp"
+using namespace cv;
+using namespace std;
 
 //#define OUTPUTCAP
 // START GLOBALS
-//our sensitivity value to be used in the absdiff() function
-
 
 int imagecount = 0;
 int framecount = 0;
 int calibcount = 0;
 int movingcount = 0;
 
-int airtime_clock = 0;
-bool trackingEnabled = false;
-
-Mat frame; //current frame
 int keyboard; //input from keyboard
 // END GLOBALS
 
@@ -60,57 +56,110 @@ void initblobs()
 }
 // Search Image should be grayscale, because Houghcircles needs it to be in this format.
 int searchForBalls(Mat &SearchImage, Mat &movingobjects, ballLoc &ballspotted) {
-	//	Mat img = Mat(Size(SearchImage.cols, SearchImage.rows), CV_8UC1);
-	int circlesfound = 0;
 	int blobsfound = 0;
-	//these two vectors needed for output of findContours
-	//vector<Vec3f> circles;
-	//HoughCircles(SearchImage, circles, CV_HOUGH_GRADIENT,
-	//	dp, min_dist, param_1, param_2, min_radius, max_radius); // going to be dependant on resolution and windowed image
-	//circlesfound = circles.size();
-	//if (circlesfound > 0)
-	//{
-	//	int largestradius = 0;
-	//	for (int i = 0; i < circlesfound; i++)
-	//	{
-	//		ballspotted.radius = cvRound(circles[i][2]);
-	//		if (ballspotted.radius > largestradius)
-	//		{
-	//			largestradius = ballspotted.radius; // new largest keypoint
-	//			ballspotted.center = Point(cvRound(circles[i][0]), cvRound(circles[i][1]));
-	//		}
-	//		// draw the circle center
-	//		//	circle(movingobjects, ballspotted.center, 3, Scalar(0, 255, 0), -1, 8, 0);
-	//		// draw the circle outline
-	//		//	circle(movingobjects, ballspotted.center, ballspotted.radius, Scalar(0, 0, 255), 3, 8, 0);
-	//	}
-	//	return circlesfound;
-	//}
-	if (circlesfound == 0)
+	// detect!
+	vector<cv::KeyPoint> keypoints;
+	detector->detect(SearchImage, keypoints);
+	blobsfound = keypoints.size();
+	if (blobsfound > 0)
 	{
-		// detect!
-		vector<cv::KeyPoint> keypoints;
-		detector->detect(SearchImage, keypoints);
-		blobsfound = keypoints.size();
-		if (blobsfound > 0)
-		{
+		drawKeypoints(SearchImage, keypoints, movingobjects, Scalar(0, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+		//imwrite("blobs" + to_string(framecount) + ".png", movingobjects);
+		int largestdiameter = 0;
+		for (int i = 0; i < blobsfound; i++)
+		{//assume the keypoint with the largest size is the ball
 			drawKeypoints(SearchImage, keypoints, movingobjects, Scalar(0, 0, 0), DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-			imwrite("blobs" + to_string(framecount) + ".png", movingobjects);
-			int largestdiameter = 0;
-			for (int i = 0; i < blobsfound; i++)
-			{//assume the keypoint with the largest size is the ball
-				if (keypoints[i].size > largestdiameter)
-				{
-					largestdiameter = keypoints[i].size; // new largest keypoint
-					ballspotted.center = Point(cvRound(keypoints[i].pt.x), cvRound(keypoints[i].pt.y));
-					ballspotted.radius = cvRound(keypoints[i].size / 2); // KeyPoint::size is a diameter
-					//keypoints[i].
-				}
+			if (keypoints[i].size > largestdiameter)
+			{
+				largestdiameter = keypoints[i].size; // new largest keypoint
+				ballspotted.center = Point(cvRound(keypoints[i].pt.x), cvRound(keypoints[i].pt.y));
+				ballspotted.radius = cvRound(keypoints[i].size / 2); // KeyPoint::size is a diameter
+				//keypoints[i].
 			}
 		}
 		return blobsfound;
 	}
 	return 0; // nothing found;
+}
+
+int RoundParts(vector<Point> contours, int samplesize, int method, Mat drawimage)
+{	 // amount of points at a time
+	bool opencurve = false;
+	if (contours.size() < samplesize) // forloop condition already provides this logic?
+		return 0;
+	vector<Point>;
+	if (method == 1)
+	{
+		for (int j = 1; j < contours.size() - samplesize; j++)
+		{
+			vector<Point>::const_iterator first = contours.begin() + samplesize;
+			//contours.
+			vector<Point>::const_iterator last = contours.begin() + samplesize + j ;
+			vector<Point> subsetin(first, last);
+			vector<Point> subsetout;
+			approxPolyDP(subsetin, subsetout, 3, opencurve);
+			Moments mo = moments((Mat)subsetout);
+			double area = mo.m00;
+			int arcL = arcLength(subsetout, opencurve); // using contour smoothness
+			double eccentricity1 = (4.0 * CV_PI * area) / (arcL * arcL);
+			double eccentricity2 = ((mo.mu20 - mo.mu02)*(mo.mu20 - mo.mu02) - (4 * mo.mu11)) / ((mo.mu20 + mo.mu02)*(mo.mu20 + mo.mu02));
+			double bigSqrt = sqrt((mo.m20 - mo.m02) *  (mo.m20 - mo.m02) + 4 * mo.m11 * mo.m11);
+			double eccentricity3 = (double)(mo.m20 + mo.m02 + bigSqrt) / (mo.m20 + mo.m02 - bigSqrt);
+		}
+	}
+	else if (method == 2)
+	{
+		//Vec4f line;
+		//fitLine((cv::Mat)contours, line, CV_DIST_L2, 0, 0.01, 0.01);
+		//int x0 = line[2];
+		//int y0 = line[3];
+		//int x1 = x0 - 200 * line[0];
+		//int y1 = y0 - 200 * line[1];
+		//cv::borderInterpolate()
+		//int arcL = arcLength(subsetout, opencurve); // using contour smoothness
+	//	vector<RotatedRect>;
+		RotatedRect tempellipse;
+		for (int j = 1; j < contours.size() - samplesize - 1; j += samplesize)
+		{
+		//	vector<Point>::const_iterator first = contours.begin() + j;
+		//	vector<Point>::const_iterator last = contours.begin() + samplesize + j;
+		//	vector<Point> subsetin(first, last);
+			//vector<Point> subsetout;
+			//tempellipse = fitEllipse(subsetin);
+			//ellipse(drawimage, tempellipse, Scalar(255, 255, 0));
+			Circle a(contours[j], contours[j+1], contours[j+2]);
+			circle(drawimage, a.GetCenter(), a.GetRadius(), Scalar(255, 255, 0));
+
+			//cv::solve(subsetin, subsetout, , );
+			//polyfit();
+			//polylines(drawimage, subsetout, opencurve, Scalar(j * 10, j * 10, j * 10));
+			//atan((y2 - y1) / (x2 - x1)) // 1st derative between two points x1,y1, x2,y2.
+			//approxPolyDP(subsetin, subsetout, 3, opencurve);
+		//	(contours[j+1].y - contours[j].y)/(contours[j + 1].x - contours[j].x);
+
+			//Mat G, dG, ddG, dX, dY;
+			//int width = 3;
+			//int sigma = 2;
+			//transpose(getGaussianKernel(width, sigma, CV_64FC1), G);
+			////filter2D(X, Xsmooth, X.depth(), G); // only for visualization 
+			////filter2D(Y, Ysmooth, Y.depth(), G);
+	
+			//// 1st and 2nd deratives
+			//Sobel(G, dG, G.depth(), 1, 0);
+			//Sobel(G, ddG, G.depth(), 2, 0);
+			//flip(dG, dG, 0);
+			//flip(ddG, ddG, 0);
+			//Point anchor(dG.cols - 1, dG.rows – 1);
+			//anchor.x
+			//
+			//filter2D(X, dX, X.depth(), dG, anchor);
+			//filter2D(Y, dY, Y.depth(), dG, anchor);
+			//filter2D(X, ddX, X.depth(), ddG, anchor);
+			//filter2D(Y, ddY, Y.depth(), ddG, anchor);
+
+		}
+	}
+	return 0;
 }
  // finds moving objecs in an image
 int searchForMovement(Mat CurrGraySource, Mat PrevGraySource, ballLoc &ballspotted) {
@@ -126,171 +175,150 @@ int searchForMovement(Mat CurrGraySource, Mat PrevGraySource, ballLoc &ballspott
 	blur(thresholdImage, blurImage, Size(BLUR_SIZE, BLUR_SIZE));
 	//threshold again to obtain binary image from blur output
 	threshold(blurImage, thresholdImage, SENSITIVITY_VALUE, 255, THRESH_BINARY);
-//	imshow("threshold", thresholdImage);
+	imshow("threshold", thresholdImage);
+
+	//int erosion_size = 2;
+	//Mat element = getStructuringElement(MORPH_ELLIPSE,
+	//	Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+	//	Point(erosion_size, erosion_size));
+	//Mat erosion;
+	//Mat dilation;
+	//erode(thresholdImage, erosion, element);
+	//dilate(erosion, dilation, element);
+	//imshow("opening", dilation);
+
+	//dilate(thresholdImage, dilation, element);
+	//erode(dilation, erosion, element);
+	//imshow("closing", erosion);
+
 	Mat ContourImage;
 	thresholdImage.copyTo(ContourImage);
+	//thresholdImage.copyTo(ContourImage);
+	//dilation.copyTo(ContourImage);
 	bool objectDetected = false;
 	//these two vectors needed for output of findContours
 	vector< vector<Point> > contours;
 	vector<Vec4i> hierarchy;
-	Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
-	//find contours of filtered image using openCV findContours function
-	//findContours(temp,contours,hierarchy,CV_RETR_CCOMP,CV_CHAIN_APPROX_SIMPLE );// retrieves all contours
+	//Rect objectBoundingRectangle = Rect(0, 0, 0, 0);
+	//findContours(ContourImage,contours,hierarchy,CV_RETR_CCOMP, CV_CHAIN_APPROX_SIMPLE);// retrieves all contours
 	findContours(ContourImage, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);// retrieves external contours, CHANGES THRESHOLD IMAGE
-	
+
 	//if contours vector is not empty, we have found some  moving objects
 	if (contours.size() > 0)
 	{
-		//the largest contour is found at the end of the contours vector
-		//we will simply assume that the biggest contour is the object we are looking for.
-		vector< vector<Point> > largestContourVec;
-		//	circlecheck(Point(contours.at(i).at(i).x, contours.at(i).at(i).y));
-		//largestContourVec.push_back(contours.at(contours.size() - 1));
-		float circularratio;
+		//vector<vector<Vec4i>> Defects(contours.size()); 
+		//vector<vector<Point>> Hull(contours.size());
+		vector<vector<Point> > contours_poly(contours.size());
+		vector<Point2f>center(contours.size());
+		vector<float>radius(contours.size());
+
+
 		double refArea = 0;
 		bool objectFound = false;
+		Mat drawimage;
+		//CurrGraySource.copyTo(drawimage);
+		cvtColor(CurrGraySource, drawimage, CV_GRAY2RGB);
+		RNG rng(12345);
+		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+		int MIN_OBJECT_AREA = 200; // resolution dependant or independat?
+		int MAX_OBJECT_AREA = 30000;//thresholdImage.rows*thresholdImage.cols / 1.5; // 3/2 area of image
+
+		//vector<Vec4i> lines;
+		//HoughLinesP(thresholdImage, lines, 1, CV_PI / 180, 80, 30, 10);
+		//for (size_t i = 0; i < lines.size(); i++)
+		//{
+		//	float rho = lines[i][0];
+		//	float theta = lines[i][1];
+		//	if 
+
+		//	line(drawimage, Point(lines[i][0], lines[i][1]),
+		//		Point(lines[i][2], lines[i][3]), Scalar(255), 3, 8);
+		//}
 		for (int i = contours.size() - 1; i >= 0; i--) // start at the largest contour, work way down.
 		{
-			Moments moment = moments((cv::Mat)contours[i]);
-			double area = moment.m00;
-			int MIN_OBJECT_AREA = 300; // resolution dependant or independat?
-			int MAX_OBJECT_AREA = 30000;//thresholdImage.rows*thresholdImage.cols / 1.5; // 3/2 area of image
-			//iteration and compare it to the area in the next iteration.
-			if (area > MIN_OBJECT_AREA && area<MAX_OBJECT_AREA && area>refArea) {
-				
-			//	ballspotted.center = Point(moment.m10 / area, moment.m01 / area);
-			//	ballspotted.radius = 3;
-				objectFound = true;
-				refArea = area;
-				Mat drawimage;
-				CurrGraySource.copyTo(drawimage);
-				Mat SearchWindow = Window(Rect(Point2f(moment.m10 / moment.m00, moment.m01 / moment.m00), Size(200,200)), thresholdImage);
-				if (searchForBalls(SearchWindow, drawimage, ballspotted) >= 1)
-				{
-				//	imshow("Draw", drawimage);
-					return 1;
-				}
-		
+		//	vector<Vec4f> partialLines;
+			//fitLine(contours[i], partialLines, cv::DistanceTypes::DIST_L1, 0, 0.01, 0.01);
+		//	polylines(drawimage, contours[i], true, Scalar(255));
+			Moments mo = moments((Mat)contours[i]);
+			double area = mo.m00;
+			if (area > MIN_OBJECT_AREA)// && area<MAX_OBJECT_AREA && area>refArea)
+			{ // three methods for calculating eccentricity
+
+				//RoundParts(contours[i], 3, 2, drawimage);
+				RotatedRect tempellipse;
+				calcEccentricity(contours[i], tempellipse);
+				ellipse(drawimage, tempellipse, Scalar(255), 2);
+				waitKey(10);
+
+
+			//	approxPolyDP((Mat)contours[i], contours_poly[i], 3, true);
+			//	minEnclosingCircle((Mat)contours_poly[i], center[i], radius[i]);
+			//	ballspotted.center = Point(cvRound(center[i].x), cvRound(center[i].y));
+			//	ballspotted.radius = cvRound((int)radius[i]); // KeyPoint::size is a diameter
+				//circle(drawimage, ballspotted.center, ballspotted.radius, Scalar(255));
+				//	putText(drawimage, "R: " + to_string(ballspotted.radius), Point(20, 40), FONT_HERSHEY_SCRIPT_SIMPLEX, 1, Scalar(255), 2);
+				//drawContours(drawimage, contours, i, Scalar(255), 2, 8, hierarchy, 0, Point());
 			}
-			else objectFound = false;
 		}
+		imshow("drawimage", drawimage);
+		waitKey(20);
 		return 0; // no balls found
-			//let user know you found an object
-		//	if (objectFound == true) {
-			//	putText(movingobjects, "Tracking Object", Point(0, 50), 2, 1, Scalar(0, 255, 0), 2);
-				//draw object location on screen
-			//	drawObject(x, y, movingobjects);
-		//	}
-			//else 
-			//	putText(movingobjects, "TOO MUCH NOISE! ADJUST FILTER", Point(0, 50), 1, 2, Scalar(0, 0, 255), 2);
-	//	}
-			//objectBoundingRectangle = boundingRect(contours.at(i));//largestContourVec.at(0));
-			//if (objectBoundingRectangle.area() > 0 && objectBoundingRectangle.area() < 50000) // SIZE CHECK DEPENDANT ON RESOLUTION
-			//{
-			//	int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
-			//	int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
-			//	int foundcircle = 0;
-			//	objectBoundingRectangle.width = objectBoundingRectangle.width + 20;
-			//	objectBoundingRectangle.height = objectBoundingRectangle.height + 20;
-			//	movingobjects = Window(objectBoundingRectangle, CurrGraySource);
-			//	movingcount++;
-			//	imwrite("testimage" + to_string(movingcount) + ".png", movingobjects);
-			//	//movingobjects = Window(Point(xpos, ypos), CurrGraySource, Size(objectBoundingRectangle.width, objectBoundingRectangle.height));
-			//	foundcircle = searchForCircles(movingobjects, movingobjects);
-			////	imshow("moving objects", movingobjects);
-			//	if (foundcircle > 0)
-			//	{ // at least one circle found
-			//	// moving objects has one ball, start running tracking
-			//		imwrite("circles" + to_string(framecount) + ".png", movingobjects);
-			//	//	break; // stop looking?
-			//	}
-			//	//	rectangle(rects, objectBoundingRectangle, Scalar(255, 255, 255));
-			//	imshow("rect", rects);
-			//	//rectangle(movingobjects, objectBoundingRectang le, Scalar(255, 255, 255));
-
-			//	circularratio = (float)objectBoundingRectangle.width / objectBoundingRectangle.height;
-			//	float threshold = 1; 
-			//	if (circularratio > (float)1/threshold || circularratio < (float)1*threshold)// (circularratio > 1 - threshold || circularratio < 1 + threshold)  //then roundness check
-			//	{ // we think this a moving circle now
-			//	circle(movingobjects, Point(xpos, ypos), 20, Scalar(255, 255, 255), 2);
-			//	 // make these generic structs to be passed to tracking method
-			//	pointlist[imagecount] = Point(xpos, ypos); 
-			//	if (imagecount > 0)
-			//	{
-			//		line(movingobjects, pointlist[imagecount - 1], pointlist[imagecount], Scalar(255, 255, 255), 2);
-			//	}
-			//	imagecount++;
-			//	}
-			//}
-			//else
-			//	break;
-
-		//}
-		//	if (camera == 1)
-		//		{
-		//			pointlist[imagecount] = Point(xpos, ypos); //.at(imagecount,imagecount);
-		//			circle(movingobjects, pointlist[imagecount], 20, Scalar(255, 255, 255), 2);
-		//		/*	if (imagecount == 0)
-		//			{
-		//				airtime_clock = clock(); // start timer for first point
-		//				putText(movingobjects, "Time(ms): 0", pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
-		//			}
-		//			else
-		//			{
-		//				int timelaspe = clock() - airtime_clock;
-		//				putText(movingobjects, "Time(ms): " + to_string(timelaspe), pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
-		//			}
-		//			*/
-		//			//putText(TrackerImage, "Tracking object at (" + intToString(xpos) + "," + intToString(ypos) + ")", pointlist[imagecount], 1, 1, Scalar(255, 0, 0), 2);
-		//			if (imagecount > 0)
-		//			{
-		//				line(movingobjects, pointlist[imagecount - 1], pointlist[imagecount], Scalar(255, 255, 255), 2);
-		//			}
-		//			imagecount++;
-		//		}
 	}
-	return 0;
 }
 
-int Algorithim2(Mat GraySource1, Mat &thresholdImage) {
-	int thresh = 50;
-	
-	GaussianBlur(GraySource1, GraySource1, Size(9, 9), 2, 2);
-	Canny(GraySource1, thresholdImage, thresh, thresh * 2, 3);
-	return 0;
-}
+//	//	drawContours(drawimage, Hull, i, CV_RGB(255, 255, 255), 2, 8, hierarchy, 0, Point());
+//	//	objectFound = true;
+//		//refArea = area;
+//		//Mat SearchWindow = Window(Rect(Point2f(moment.m10 / moment.m00, moment.m01 / moment.m00), Size(200, 200)), CurrGraySource);
+//		//if (searchForBalls(CurrGraySource, drawimage, ballspotted) >= 1) // SearchWindow
+//		//{
+//		//	imshow("Draw", drawimage);
+//		//	return 1;
+//		//}
+
+//	}
+//	else objectFound = false;
+//}
+////RotatedRect fittedEllipse = fitEllipse(contours[i]);
+////		convexHull((Mat)contours[i], Hull[i], false, false);
+//	//	convexityDefects((Mat)contours[i], Hull[i], Defects[i]);
+
+				//objectBoundingRectangle = boundingRect(contours.at(i));//largestContourVec.at(0));
+				//if (objectBoundingRectangle.area() > 0 && objectBoundingRectangle.area() < 50000) // SIZE CHECK DEPENDANT ON RESOLUTION
+				//{
+				//	int xpos = objectBoundingRectangle.x + objectBoundingRectangle.width / 2;
+				//	int ypos = objectBoundingRectangle.y + objectBoundingRectangle.height / 2;
+				//	int foundcircle = 0;
+				//	objectBoundingRectangle.width = objectBoundingRectangle.width + 20;
+				//	objectBoundingRectangle.height = objectBoundingRectangle.height + 20;
+				//	movingobjects = Window(objectBoundingRectangle, CurrGraySource);
+				//	movingcount++;
+				//	imwrite("testimage" + to_string(movingcount) + ".png", movingobjects);
+				//	//movingobjects = Window(Point(xpos, ypos), CurrGraySource, Size(objectBoundingRectangle.width, objectBoundingRectangle.height));
+				//	foundcircle = searchForCircles(movingobjects, movingobjects);
+
+
+
 
 void MyCallbackForContrast(int iValueForContrast, void *userData)
 {
 	Mat dst;
 	int iValueForBrightness = *(static_cast<int*>(userData));
-
 	//Calculating brightness and contrast value
 	int iBrightness = iValueForBrightness - 50;
 	double dContrast = iValueForContrast / 50.0;
-
 	//Calculated contrast and brightness value
 	cout << "MyCallbackForContrast : Contrast=" << dContrast << ", Brightness=" << iBrightness << endl;
-
 	//adjust the brightness and contrast
 	//src.convertTo(dst, -1, dContrast, iBrightness);
-
 	//show the brightness and contrast adjusted image
 	imshow("My Window", dst);
 }
-
 int main() {
 	// START DECLARATIONS
-	//some boolean variables for added functionality
-	cvUseOptimized(1);
-	bool objectDetected = false;
+//	cvUseOptimized(1); // how to check we are using IPP calls?
 	//pause and resume code
 	bool pause = false;
-
-	Mat differenceImage;
-	Mat thresholdImage =  Mat(RESOLUTION, CV_8UC1);
-	Mat movingobjects = Mat(RESOLUTION, CV_8UC3);
-	Mat* contour_drawing; 
 	
 	Point textcenter1(100, 50); // text variables start
 	Point textcenter2(100, 100);
@@ -299,32 +327,28 @@ int main() {
 	double fontScale = 1;
 	int thickness = 2; // text variables end
 
-	unsigned int current_time = 1;
 	float start_time = clock(); // timer variable
 	unsigned int last_time = clock();
 	unsigned int framecounter = 0;
-	int frame_start = 0;
 	float fps;
 	const string filepath = "test.avi"; //C:\Users\Benjamin\Desktop
 	VideoWriter output_cap;
 	const string videopath = "ballthrow2.avi";
-
 //END DECLARATIONS
 
 // START INIT
 
-	int capids[] = { 700 };//, 702 };//, 702};
-	string config = videopath;
-	//string config = "L";
-
-	Stereotime stereoset;// Stereotime::Stereo_update
-	stereoset.Stereo_Init();
+	bool trackingEnabled = false;
+	int capids[] = { 1 };//, 702 };
+	string config = "does nothing"; 	// make config string meaningful
+	string videosource = videopath;
+	Stereotime stereoset;// intergrate with pipeline
+	stereoset.Stereo_Init(RESOLUTION);
 	initblobs();
 	createTrackbars();
 	createTrackbars_Blob();
-	//void(*on_trackbar)(int, void*) = (void(*))Stereotime::Stereo_update;//(int, void*)
 	ImagePipeline Pipeline(1, capids, &config, searchForMovement, searchForBalls); // init with webcams source
-//	ImagePipeline Pipeline(1, &config, &config, searchForMovement, searchForBalls); // init with video source
+//	ImagePipeline Pipeline(1, &videosource, &config, searchForMovement, searchForBalls); // init with video source
 	int trackmode = 0;
 #ifdef OUTPUTCAP
 	int debug = output_cap.open(filepath,
@@ -342,58 +366,48 @@ int main() {
 		 return -1;
 	 }
 #endif
-
-	 //Create trackbar to change contrast
-	 //int minThreshold = 0;
-	 //createTrackbar("minThreshold", "My Window", &minThreshold, 255);
-	 //Point p = Point(0,0);
-	// namedWindow("RGB");
-	// namedWindow("NormDisparity", CV_WINDOW_AUTOSIZE);
-	 //setMouseCallback("RGB", on_mouse, &p);
-	 Mat smalldisp;
-	 Mat bigdisp;								/// WAS 1
-	 Mat ShiftedImage;// = Mat(RESOLUTION, CV_8UC1);
-	 Point2f srcTri[3];
-	 Point2f dstTri[3];
-	 srcTri[0] = Point2f(1);
-	 srcTri[1] = Point2f(1);
-	 srcTri[2] = Point2f(1);
-	 dstTri[0] = Point2f(1);
-	 dstTri[1] = Point2f(1);
-	 dstTri[2] = Point2f(1);
-	 Mat affinetrans = getAffineTransform(srcTri, dstTri);
-	 Mat TranslationMat = Mat(Size(3, 2), affinetrans.type());
-	 TranslationMat(Rect(Point(0, 0), Size(1, 1))) = 1;
-	 TranslationMat(Rect(Point(1, 0), Size(1, 1))) = 0;
-	 TranslationMat(Rect(Point(2, 0), Size(1, 1))) = 30;
-	 TranslationMat(Rect(Point(0, 1), Size(1, 1))) = 0;
-	 TranslationMat(Rect(Point(1, 1), Size(1, 1))) = 1;
-	 TranslationMat(Rect(Point(2, 1), Size(1, 1))) = 0;
  // END INIT
-	 Pipeline.cap(); // initial frame for each buffer so previous frame is available on first loop
-	 Pipeline.RGBtoGray();
+	 ballLoc ballspotted;
+	 Ptr<BackgroundSubtractor> BGS = createBackgroundSubtractorMOG2();
+	 Mat FG;// foreground
+	 Mat FGT;
+	 Mat FGB;
+	 Mat BG; // background
+	 for (int i = 0; i < 100; i++)
+	 {
+		 Pipeline.cap(); // initial frame for each buffer so previous frame is available on first loop
+		 Pipeline.RGBtoGray();
+		 BGS->apply(Pipeline.sources[0]->Gray_Buffer->current(), FG, 0.8);
+	 }
+	 BGS->getBackgroundImage(Pipeline.sources[0]->background_image);
 	// stereoset.remap_Grey(Pipeline.sources[0]->Gray_Buffer->current(), Pipeline.sources[1]->Gray_Buffer->current());
-	 Pipeline.sources[0]->Gray_Buffer->current().copyTo(Pipeline.sources[0]->background_image);
+	// Pipeline.sources[0]->Gray_Buffer->current().copyTo(Pipeline.sources[0]->background_image);
 	// Pipeline.sources[1]->Gray_Buffer->current().copyTo(Pipeline.sources[1]->background_image);
-	 Mat drawimage;
-	 Pipeline.sources[0]->Gray_Buffer->current().copyTo(drawimage);
+
 	////////// MAIN LOOP START
 	while (1) { // capture and process loop
-		fps = 1000 / (1 + clock() - last_time); // time stuff
+		fps = 1000.0/(float)(1 + clock() - last_time); // time stuff
 		last_time = clock();
 		cout << "FPS: " << fps << endl; // faster than draw??
 		framecount++; 
 
 		Pipeline.cap();
 		Pipeline.RGBtoGray();
-		Pipeline.detection();
 
+	//	imshow("background", BG);
+	//	blur(FG, FGB, Size(5, 5));
+		//threshold(FGB, FGT, 50.0, 255, cv::ThresholdTypes::THRESH_BINARY);
+	//	imshow("cmon", FGT);
+	//	searchForMovement(Pipeline.sources[0]->Gray_Buffer->current(), Pipeline.sources[0]->background_image, ballspotted);
+	//	searchForBalls(Pipeline.sources[0]->Gray_Buffer->current(), drawimage, ayy);
+	//	imshow("blobs", drawimage);
 	//	stereoset.remap_Grey(Pipeline.sources[0]->Gray_Buffer->current(), Pipeline.sources[1]->Gray_Buffer->current());
 
 	//	imshow("L_RGB", Pipeline.sources[0]->RGB_Buffer->current());
 	//	imshow("R_RGB", Pipeline.sources[1]->RGB_Buffer->current());
-		//imshow("L_GRAY", Pipeline.sources[0]->Gray_Buffer->current());
+	//	imshow("L_GRAY", Pipeline.sources[0]->Gray_Buffer->current());
 	//	imshow("R_GRAY", Pipeline.sources[1]->Gray_Buffer->current());
+
 		//Mat WindowL = Window(Rect(Point(100,100), Size(100, 100)), Pipeline.sources[0]->Gray_Buffer->current());
 		//Mat WindowR = Window(Rect(Point(100,100), Size(100, 100)), Pipeline.sources[1]->Gray_Buffer->current());
 		//	Mat dispare = stereoset.compute_Stereo(WindowL, WindowR);
@@ -401,20 +415,6 @@ int main() {
 		//normalize(dispare, Pipeline.sources[1]->Disp_Buffer->store(), 0, 255, CV_MINMAX, CV_8U);
 	//	imshow("NormDisparity", Pipeline.sources[1]->Disp_Buffer->current());
 
-	//	warpAffine(Pipeline.sources[0]->Gray_Buffer->current(), ShiftedImage, TranslationMat, RESOLUTION);
-		//imshow("shift", ShiftedImage);
-
-	//	stereoset.compute_Stereo(Pipeline.sources[0]->Gray_Buffer->current(), ShiftedImage, bigdisp);
-	//	Mat Windowdisp = Window(Rect(Point(50,50), Size(50,50)), bigdisp);
-	//	imshow("bdisp", Windowdisp);
-
-	//	double errorL2 = norm(smalldisp, Windowdisp, CV_L2);
-		// Convert to a reasonable scale, since L2 error is summed across all pixels of the image.
-	//	double similarity = errorL2 / (double)(smalldisp.rows * smalldisp.cols);
-	//	cout << "similarity:" << similarity << endl;
-		// try abs diff next?
-	//	Pipeline.detect(Pipeline.sources[0]->Gray_Buffer->current(), Pipeline.sources[0]->Gray_Buffer->previous(), Pipeline.objTracker.trackerList[0][0].ball_location);
-	//	Pipeline.detect(Pipeline.sources[1]->Gray_Buffer->current(), Pipeline.sources[1]->Gray_Buffer->previous(), Pipeline.objTracker.trackerList[1][0].ball_location);
 	// PIPELINE START
 		//if (trackmode == 0)
 		//{
@@ -438,19 +438,44 @@ int main() {
 		//	int a = 0;
 		//}
 ///////////////	PIPELINE END
-	//	searchForCircles(thresholdImage, movingobjects);
 	// DONT DRAW ON GRAY OR RGB IMAGES BECAUSE THEY ARE SOURCE IMAGES AND DRAWING PERMANENTLY MODIFIES THE IMAGE
-	// useful code
-	// copy an smaller image into a bigger one
-	//Mat BlackMatR = Mat(RESOLUTION, CV_8UC1);
-	//Mat WindowR = Window(Rect(1, 1, 51, 51), Pipeline.sources[1]->Gray_Buffer->current());
-	//cv::Rect roiR(cv::Point(1, 1), WindowR.size());
-	//WindowR.copyTo(BlackMatR(roiR));
+
+
+	//int kernel_size = 31;
+	//double sig = 1, th = 0, lm = 1.0, gm = 0.02, ps = 0;
+
+	//Mat StartImage = imread("TestImage.jpg", CV_LOAD_IMAGE_COLOR);
+	//Mat InputImage;
+	//Mat GaborImage;
+	//StartImage.convertTo(InputImage, CV_32F);
+
+	//cv::Mat kernel = cv::getGaborKernel(cv::Size(kernel_size, kernel_size), sig, th, lm, gm, ps);
+	//cv::filter2D(InputImage, GaborImage, CV_32F, kernel);
+
+	//// Load Image
+	//Mat StartImage;
+	//Mat GaborImage;
+	//Mat InputImage;
+	//Mat DisplayImage;
+	//// Convert Image type
+	//Pipeline.sources[0]->RGB_Buffer->current().convertTo(InputImage, CV_32F);
+
+	//// Create the kernel
+	//int kernel_size = 31;
+	//double sig = 1, th = 0, lm = 1.0, gm = 0.02, ps = 0;
+	//cv::Mat kernel = cv::getGaborKernel(cv::Size(kernel_size, kernel_size), sig, th, lm, gm, ps);
+	//// Apply to the Image
+	//cv::filter2D(Pipeline.sources[0]->RGB_Buffer->current(), GaborImage, CV_32F, kernel);
+	//
+	//// convert resulting image back so it can be viewed
+	//GaborImage.convertTo(DisplayImage, CV_8U, 1.0 / 255.0);
+	//imshow("GaborImage", DisplayImage);
+	//waitKey(50);
 #ifdef OUTPUTCAP		
 	output_cap.write(Pipeline.sources[0]->RGB_Buffer->current());
 #endif
 		// start keyboard interface
-		char key = waitKey(1);
+		char key = waitKey(20);
 		switch (key) {
 		case 'q': //'esc' key has been pressed, exit program.
 			output_cap.release();

@@ -1,8 +1,9 @@
 #ifndef PROJECTIONMETHODS_H
 #define PROJECTIONMETHODS_H
-#include "ProjectionMethods.h"
+#include "ProjectionMethods.hpp"
 #endif
-
+using namespace cv;
+using namespace std;
 
 //int PreFilterSize = 0;	
 //int PreFilterCap = 19;	
@@ -102,29 +103,30 @@ void createTrackbars() { //Create window for trackbars
 	char TrackbarName[50];
 
 	// Create TrackBars Window
-	namedWindow(trackbarWindowName, 0);
+	cv::namedWindow(trackbarWindowName, 0);
 
 	// Create memory to store Trackbar name on window
-	sprintf(TrackbarName, "preFilterSize");
-	sprintf(TrackbarName, "preFilterCap");
-	sprintf(TrackbarName, "SADWindowSize");
-	sprintf(TrackbarName, "minDisparity");
-	sprintf(TrackbarName, "numberOfDisparities");
-	sprintf(TrackbarName, "textureThreshold");
-	sprintf(TrackbarName, "uniquenessRatio");
-	sprintf(TrackbarName, "speckleWindowSize");
-	sprintf(TrackbarName, "speckleRange");
-	sprintf(TrackbarName, "disp12MaxDiff");
+	std::sprintf(TrackbarName, "preFilterSize");
+	std::sprintf(TrackbarName, "preFilterCap");
+	std::sprintf(TrackbarName, "SADWindowSize");
+	std::sprintf(TrackbarName, "minDisparity");
+	std::sprintf(TrackbarName, "numberOfDisparities");
+	std::sprintf(TrackbarName, "textureThreshold");
+	std::sprintf(TrackbarName, "uniquenessRatio");
+	std::sprintf(TrackbarName, "speckleWindowSize");
+	std::sprintf(TrackbarName, "speckleRange");
+	std::sprintf(TrackbarName, "disp12MaxDiff");
 	//Create Trackbars and insert them into window
 
-	createTrackbar("preFilterCap", trackbarWindowName, &PreFilterCap, PreFilterCap_MAX, on_trackbar);
-	createTrackbar("SADWindowSize", trackbarWindowName, &SADWindowSize, SADWindowSize_MAX, on_trackbar);
-	createTrackbar("minDisparity", trackbarWindowName, &MinDisparity, MinDisparity_MAX, on_trackbar);
-	createTrackbar("numberOfDisparities", trackbarWindowName, &NumberOfDisparities, NumberOfDisparities_MAX, on_trackbar);
-	createTrackbar("uniquenessRatio", trackbarWindowName, &UniquenessRatio, UniquenessRatio_MAX, on_trackbar);
-	createTrackbar("speckleWindowSize", trackbarWindowName, &SpeckleWindowSize, SpeckleWindowSize_MAX, on_trackbar);
-	createTrackbar("speckleRange", trackbarWindowName, &SpeckleRange, SpeckleRange_MAX, on_trackbar);
-	createTrackbar("disp12MaxDiff", trackbarWindowName, &Disp12MaxDiff, Disp12MaxDiff_MAX, on_trackbar);
+	cv::createTrackbar("preFilterCap", trackbarWindowName, &PreFilterCap, PreFilterCap_MAX, on_trackbar);
+	cv::createTrackbar("SADWindowSize", trackbarWindowName, &SADWindowSize, SADWindowSize_MAX, on_trackbar);
+	cv::createTrackbar("minDisparity", trackbarWindowName, &MinDisparity, MinDisparity_MAX, on_trackbar);
+	cv::createTrackbar("numberOfDisparities", trackbarWindowName, &NumberOfDisparities, NumberOfDisparities_MAX, on_trackbar);
+	cv::createTrackbar("uniquenessRatio", trackbarWindowName, &UniquenessRatio, UniquenessRatio_MAX, on_trackbar);
+	cv::createTrackbar("speckleWindowSize", trackbarWindowName, &SpeckleWindowSize, SpeckleWindowSize_MAX, on_trackbar);
+	cv::createTrackbar("speckleRange", trackbarWindowName, &SpeckleRange, SpeckleRange_MAX, on_trackbar);
+	cv::createTrackbar("disp12MaxDiff", trackbarWindowName, &Disp12MaxDiff, Disp12MaxDiff_MAX, on_trackbar);
+	//BM only trackbars
 	//	createTrackbar("preFilterSize", trackbarWindowName, &PreFilterSize, PreFilterSize_MAX, on_trackbar);
 	//createTrackbar("textureThreshold", trackbarWindowName, &TextureThreshold, TextureThreshold_MAX, on_trackbar);
 }
