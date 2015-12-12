@@ -130,3 +130,4 @@ void createTrackbars() { //Create window for trackbars
 	//	createTrackbar("preFilterSize", trackbarWindowName, &PreFilterSize, PreFilterSize_MAX, on_trackbar);
 	//createTrackbar("textureThreshold", trackbarWindowName, &TextureThreshold, TextureThreshold_MAX, on_trackbar);
 }
+

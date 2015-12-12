@@ -98,11 +98,28 @@ public:
 
 	//////// END STEREO INIT
 	//Mat LeftRemap, RightRemap;
+	void remap_RGB(cv::Mat &RGB, int leftorright)
+	{
+		if (leftorright == 0) // left
+			cv::remap(RGB, RGB, map11, map12, cv::INTER_LINEAR);
+		else if (leftorright == 1) // right
+			cv::remap(RGB, RGB, map21, map22, cv::INTER_LINEAR);
+	}
+	void remap_RGB(cv::Mat &RGBL, cv::Mat &RGBR)
+	{
+		cv::remap(RGBL, RGBL, map11, map12, cv::INTER_LINEAR);
+		cv::remap(RGBR, RGBR, map21, map22, cv::INTER_LINEAR);
+	}
 
 	void remap_Grey(cv::Mat &Gray_Left, cv::Mat &Gray_Right)
 	{
 		cv::remap(Gray_Left, Gray_Left, map11, map12, cv::INTER_LINEAR);
 		cv::remap(Gray_Right, Gray_Right, map21, map22, cv::INTER_LINEAR);
+	}
+	void remap_HSV(cv::Mat &HSV_Left, cv::Mat &HSV_Right)
+	{
+		cv::remap(HSV_Left, HSV_Left, map11, map12, cv::INTER_LINEAR);
+		cv::remap(HSV_Right, HSV_Right, map21, map22, cv::INTER_LINEAR);
 	}
 	//Mat disp, disp8;
 	// STEREO METHOD
@@ -120,17 +137,46 @@ public:
 	}
 	// given the normalized disparity image (should be normalized ??), now generate threshold the image so only the ball's points remain.
 	// ignore any "black" points and average all the points to get the real 3D center point of the ball.
-	void projectTheBall(cv::Mat disparity)
+	std::vector<cv::Point3f> calcDisparityPoints(std::vector<cv::Point2f> inputsL, std::vector<cv::Point2f> inputsR)
 	{
-		// now project 3d points
-		cv::Mat disp32_bm = cv::Mat(disparity.size(), CV_32F);
-		cv::Mat XYZ(disparity.size(), CV_32FC3);
-		disparity.convertTo(disp32_bm, CV_32F);
-		reprojectImageTo3D(disparity, XYZ, Q, false, CV_32F);
-		//perspectiveTransform(disparity, XYZ, Q);
+		int j = inputsL.size() < inputsR.size() ? inputsL.size() : inputsR.size(); // use the min num of points
+		std::vector<cv::Point3f> outputpoints;
+		cv::Point3f tempP;
+		for (int i = 0; i < j; i++)
+		{
+			tempP.x = inputsL[i].x; // using left camera as base
+			tempP.y = (inputsR[i].y + inputsL[i].y)/2; // y should be the same?
+			tempP.z = (inputsR[i].x - inputsL[i].x); // order and use x or y?
+			outputpoints.push_back(tempP);
+		}
+		return outputpoints;
+	}
+	std::vector<cv::Point3f> projectTheBall(std::vector<cv::Point3f> inputpoints)
+	{
+		std::vector<cv::Point3f> outputpoints;
+		perspectiveTransform(inputpoints, outputpoints, Q); // now real world coords
+		return outputpoints;
+		// calculate trajectory and landing position // 'FLOOR' HEIGHT from CAMERA, ASSUME CAMERA is LEVEL with the 'FLOOR'
+
+
+	//	cv::Mat inputmat(inputpoints); // convert vec to mat
+	//	// now project 3d points
+	//	cv::Mat disp32_bm = cv::Mat(inputmat.size(), CV_32F);
+	//	inputmat.convertTo(disp32_bm, CV_32F);
+	//	cv::Mat XYZ(inputmat.size(), CV_32FC3);
+	////	reprojectImageTo3D(inputmat, XYZ, Q, false, CV_32F);
+
+	//	cv::Vec4f threeDline;
+	//	//cv::approxPolyDP(XYZ, )
+	//	cv::fitLine(XYZ, threeDline, CV_DIST_L2, 0, 0.01, 0.01);
+		//now calculate where the ball is going to land at y inches.
+
 		// XYZ is output, where to save??
 	}
 
+	void calcTrajectory()
+	{
+	}
 	private:
 		cv::Size img_size;
 		cv::Rect roi1, roi2;

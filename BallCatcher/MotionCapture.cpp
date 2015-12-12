@@ -1,62 +1,92 @@
-//#include <opencv2/opencv.hpp>
-//#include <Windows.h>
-//#include <iostream>
-//#include <ctime>
-//
-//
-//
-//using namespace std;
-//using namespace cv;
-//
-//
+#include <opencv2/opencv.hpp>
+#include <Windows.h>
+#include <iostream>
+#include <ctime>
+#include "MotionCapture.h"
+using namespace std;
+using namespace cv;
+
+//Physics problem, predicting path of a projectile object-----------------------------------------------------------
+#define GRAVITY 9.81
+#define PI 3.14159265
+#define MAX_PREDICTION_POINTS 100
+#define FLOOR_HEIGHT 31
+
+
+Point3D initialPoint1;
+Point3D initialPoint2;
+double angleXY;
+double angleXZ;
+double initialV;
+
+double angle_XY(Point3D &point1,  Point3D &point2) {
+	return atan2((point2.y - point1.y) , (point2.x - point1.x));
+		//atan((point2.y - point1.y) / (point2.x - point1.x));
+}
+double angle_XZ( Point3D &point1,  Point3D &point2) {
+	return atan2((point2.z - point1.z) , (point2.x - point1.x));
+}
+double findDistance(Point3D &point1,  Point3D &point2) {
+	return sqrt((point1.x - point2.x)*(point1.x - point2.x) +
+				(point1.y - point2.y)*(point1.y - point2.y));
+}
+double VolocityY() {
+	return 0;
+}
+double VolocityX() {
+	return 0;
+}
+double initialVolocity(Point3D &point1, Point3D &point2) {
+	double time = (point2.timestamp - point1.timestamp);
+	return findDistance(point1, point2) / time;
+}
+void rotateAboutYAxis(double q, Point3D &point) {
+	/*
+	z' = z*cos q - x*sin q
+	x' = z*sin q + x*cos q
+	y' = y
+	*/
+	point.x = point.z * cos(q) - point.x * sin(q);
+	point.z = point.z * sin(q) + point.x * cos(q);
+}
+Point3D PotisionAtPoint(Point3D &point) {
+	angleXY = angle_XY(initialPoint1, initialPoint2);
+	Point3D position;
+	position.x = point.x;
+	double test = cos(angleXY);
+	position.y = initialPoint1.y + (point.x * tan(angleXY)) -
+		(((point.x * point.x) * GRAVITY)/(2*(initialV * cos(angleXY))*(initialV * cos(angleXY))));
+	position.z = point.z;
+	cout << position.x << " " << position.y << endl;
+	if (position.z != 0.0) {
+		angleXZ = angle_XZ(initialPoint1, initialPoint2);
+		rotateAboutYAxis(angleXZ, position);
+	}
+	return position;
+}
+Point3D calculateObjectPosition(vector<Point3D> &points,Point3D point1, Point3D point2) {
+	initialPoint1 = point1;
+	initialPoint2 = point2;
+	initialV = initialVolocity(point1, point2);
+	Point3D temp = point1;
+    Point3D catchingPoint = temp;
+	for (int i = 0;i < MAX_PREDICTION_POINTS;i++) {
+		temp.x += 1;
+		catchingPoint = PotisionAtPoint(temp);
+		points.push_back(catchingPoint);
+		if(catchingPoint.y <= FLOOR_HEIGHT){
+			break;
+		}
+	}
+	return catchingPoint;
+}
+//------------------------------------------------------------------------------------------------------------------
+
 //int main(int, char**)
 //{
-//	VideoCapture cap(0); // open the default camera
-//	if (!cap.isOpened())  // check if we succeeded
-//		return -1;
-//	// set camera parameters
-//	//cap.set(CV_CAP_PROP_FPS, 30);
-//	cap.set(CV_CAP_PROP_FRAME_WIDTH, 640);
-//	cap.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-//
-//	Mat edges;
-//	namedWindow("edges", 1);
-//	Mat current_frame;
-//	int framecounter = 0;
-//
-//	Point textcenter1(100, 50); // text variables start
-//	Point textcenter2(100, 100);
-//	Point textcenter3(100, 150);
-//	int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
-//	double fontScale = 1;
-//	int thickness = 2; // text variables end
-//	int current_time = 0;
-//	unsigned int start = clock(); // timer variable
-//	for (;;)
-//	{
-//
-//		cap >> current_frame; // get a new frame from camera
-//		//cap.grab(); // method for hardware sychronization
-//	//	cap.retrieve(current_frame);
-//
-//		cvtColor(current_frame, edges, CV_BGR2GRAY);
-//		GaussianBlur(edges, edges, Size(7, 7), 1.5, 1.5);
-//		Canny(edges, edges, 0, 30, 3);
-//
-//		//Time and Frame tracker and display -> should be exracted to seperate functions
-//		current_time = 1 + ((clock() - start) / 1000);
-//		framecounter++;
-//		//	putText(edges, "Frame count: " + to_string(framecounter++), textcenter1, fontFace, fontScale,Scalar::all(255), thickness, 5);
-//		putText(current_frame, "Seconds past: " + to_string(cap.get(CV_CAP_PROP_FPS)), textcenter2, fontFace, fontScale, Scalar::all(255), thickness, 5);
-//		putText(current_frame, "FPS: " + to_string(framecounter / current_time), textcenter3, fontFace, fontScale, Scalar::all(255), thickness, 5);
-//	//	cout << to_string(framecounter / current_time) + "\n";
-//
-//		imshow("Webcam", current_frame);
-//		imshow("edges", edges);
-//
-//		if (waitKey(30) >= 0) break;
-//
-//	}
-//	// the camera will be deinitialized automatically in VideoCapture destructor
+//	//example 3d plot
+//	vector<Point3D> points;
+//	struct Point3D point1(1, 50, 1, 1), point2(2, 100, 0, 2);
+//	calculateObjectPosition(points,point1, point2);
 //	return 0;
 //}

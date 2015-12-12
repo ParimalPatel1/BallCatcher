@@ -3,7 +3,7 @@
 #ifndef CIRCLEDETECT_HPP
 #define CIRCLEDETECT_HPP
 // input points, L output ellipse
-void calcEccentricity(std::vector<cv::Point> v, cv::RotatedRect &L);
+void findTheBall(std::vector<cv::Point> v, cv::RotatedRect &L, bool drawmode = false);
 
 
 #endif

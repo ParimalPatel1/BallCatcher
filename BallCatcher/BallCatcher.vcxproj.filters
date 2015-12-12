@@ -13,55 +13,13 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="TrainingClassifier">
-      <UniqueIdentifier>{567b7d71-12e6-4cf2-99c8-41879ee5bdff}</UniqueIdentifier>
+    <Filter Include="Demos">
+      <UniqueIdentifier>{2f67bc2c-b034-4358-b744-1bf19c11e507}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="motiontracking.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ProjectionMethods.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Circle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\boost.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\cascadeclassifier.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\features.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\haarfeatures.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\HOGfeatures.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\imagestorage.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\lbpfeatures.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\old_ml_boost.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\old_ml_data.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\old_ml_inner_functions.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\old_ml_tree.cpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\opencv\sources\apps\traincascade\traincascade.cpp">
-      <Filter>TrainingClassifier</Filter>
     </ClCompile>
     <ClCompile Include="alkeshsource.cpp">
       <Filter>Resource Files</Filter>
@@ -81,9 +39,6 @@
     <ClCompile Include="KalmanFilterPrediction.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
-    <ClCompile Include="MotionCapture.cpp">
-      <Filter>Resource Files</Filter>
-    </ClCompile>
     <ClCompile Include="reprojectImageTo3D.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
@@ -99,40 +54,52 @@
     <ClCompile Include="..\..\opencv\sources\apps\createsamples\utility.cpp">
       <Filter>Resource Files</Filter>
     </ClCompile>
-    <ClCompile Include="circledetect.cpp">
+    <ClCompile Include="testcodedump.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\CannyDetector_Demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\copyMakeBorder_demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\filter2D_demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\Geometric_Transforms_Demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\HoughCircle_Demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\HoughLines_Demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\imageSegmentation.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\Laplace_Demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\Remap_Demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\opencv\sources\samples\cpp\tutorial_code\ImgTrans\Sobel_Demo.cpp">
+      <Filter>Demos</Filter>
+    </ClCompile>
+    <ClCompile Include="ProjectionMethods.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="testball.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="MotionCapture.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="polyfit.hpp">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\boost.h">
-      <Filter>TrainingClassifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\cascadeclassifier.h">
-      <Filter>TrainingClassifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\haarfeatures.h">
-      <Filter>TrainingClassifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\HOGfeatures.h">
-      <Filter>TrainingClassifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\imagestorage.h">
-      <Filter>TrainingClassifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\lbpfeatures.h">
-      <Filter>TrainingClassifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\old_ml.hpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\old_ml_precomp.hpp">
-      <Filter>TrainingClassifier</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\opencv\sources\apps\traincascade\traincascade_features.h">
-      <Filter>TrainingClassifier</Filter>
     </ClInclude>
     <ClInclude Include="DetectionMethods.h">
       <Filter>Resource Files</Filter>
@@ -155,10 +122,8 @@
     <ClInclude Include="circledetect.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="..\..\opencv\sources\apps\traincascade\CMakeLists.txt">
-      <Filter>TrainingClassifier</Filter>
-    </Text>
+    <ClInclude Include="MotionCapture.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
