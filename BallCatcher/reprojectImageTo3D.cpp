@@ -13,55 +13,57 @@
 ////#define RESOLUTION_1280x720
 ////#define CALIBRATION_ON
 //
-//using namespace cv;
-//using namespace std;
+// using namespace cv;
+// using namespace std;
 //
 ////Global Variables
-//const string trackbarWindowName = "Trackbars";
+// const string trackbarWindowName = "Trackbars";
 //
 ////initial min and max BM Parameters values.
 ////these will be changed using trackbars
-//int preFilterSize			 = 50;	const int preFilterSize_MAX		 	= 100;
-//int preFilterCap			 = 46;	const int preFilterCap_MAX		 	= 100;
-//int SADWindowSize			 = 17;	const int SADWindowSize_MAX		 	= 100;
-//int minDisparity			 = 53;	const int minDisparity_MAX		 	= 100;
-//int numberOfDisparities		 = 5;	const int numberOfDisparities_MAX 	= 16;
-//int textureThreshold		 = 20;	const int textureThreshold_MAX		= 100;
-//int uniquenessRatio			 = 0;	const int uniquenessRatio_MAX		= 100;
-//int speckleWindowSize		 = 21;	const int speckleWindowSize_MAX	 	= 100;
-//int speckleRange			 = 100;	const int speckleRange_MAX		 	= 100;
-//int disp12MaxDiff			 = 1;	const int disp12MaxDiff_MAX		 	= 1;
+// int preFilterSize			 = 50;	const int preFilterSize_MAX		 	= 100;
+// int preFilterCap			 = 46;	const int preFilterCap_MAX		 	= 100;
+// int SADWindowSize			 = 17;	const int SADWindowSize_MAX		 	= 100;
+// int minDisparity			 = 53;	const int minDisparity_MAX		 	= 100;
+// int numberOfDisparities		 = 5;	const int numberOfDisparities_MAX 	= 16;
+// int textureThreshold		 = 20;	const int textureThreshold_MAX		= 100;
+// int uniquenessRatio			 = 0;	const int uniquenessRatio_MAX		= 100;
+// int speckleWindowSize		 = 21;	const int speckleWindowSize_MAX	 	= 100;
+// int speckleRange			 = 100;	const int speckleRange_MAX		 	= 100;
+// int disp12MaxDiff			 = 1;	const int disp12MaxDiff_MAX		 	= 1;
 //
 ////Scope
-//void createTrackbars();
-//void resize_frame(Mat* frame1,Mat* frame2);
-//void change_resolution(VideoCapture* cap_l,VideoCapture* cap_r);
-//void contrast_and_brightness(Mat &left,Mat &right,float alpha,float beta);
-//Mat readQMatrix();
-//Mat makeQMatrix(Point2d image_center,double focal_length, double baseline);
-//void readCalibFiles(Mat &M1,Mat &D1,Mat &M2,Mat &D2,Mat &R,Mat &T);
-//void eular2rot(double yaw,double pitch, double roll,Mat& dest);
-//void lookat(Point3d from, Point3d to, Mat& destR);
+// void createTrackbars();
+// void resize_frame(Mat* frame1,Mat* frame2);
+// void change_resolution(VideoCapture* cap_l,VideoCapture* cap_r);
+// void contrast_and_brightness(Mat &left,Mat &right,float alpha,float beta);
+// Mat readQMatrix();
+// Mat makeQMatrix(Point2d image_center,double focal_length, double baseline);
+// void readCalibFiles(Mat &M1,Mat &D1,Mat &M2,Mat &D2,Mat &R,Mat &T);
+// void eular2rot(double yaw,double pitch, double roll,Mat& dest);
+// void lookat(Point3d from, Point3d to, Mat& destR);
 //
-//template <class T>
-//static void projectImagefromXYZ_(Mat& image, Mat& destimage, Mat& disp, Mat& destdisp, Mat& xyz, Mat& R, Mat& t, Mat& K, Mat& dist, Mat& mask, bool isSub);
+// template <class T>
+// static void projectImagefromXYZ_(Mat& image, Mat& destimage, Mat& disp, Mat& destdisp, Mat& xyz, Mat& R, Mat& t, Mat&
+// K, Mat& dist, Mat& mask, bool isSub);
 //
-//template <class T>
-//static void fillOcclusionInv_(Mat& src, T invalidvalue);
+// template <class T>
+// static void fillOcclusionInv_(Mat& src, T invalidvalue);
 //
-//template <class T>
-//static void fillOcclusion_(Mat& src, T invalidvalue);
+// template <class T>
+// static void fillOcclusion_(Mat& src, T invalidvalue);
 //
-//void projectImagefromXYZ(Mat &image, Mat &destimage, Mat &disp, Mat &destdisp, Mat &xyz, Mat &R, Mat &t, Mat &K, Mat &dist, bool isSub);
-//void fillOcclusion(Mat& src, int invalidvalue, bool isInv);
+// void projectImagefromXYZ(Mat &image, Mat &destimage, Mat &disp, Mat &destdisp, Mat &xyz, Mat &R, Mat &t, Mat &K, Mat
+// &dist, bool isSub);
+// void fillOcclusion(Mat& src, int invalidvalue, bool isInv);
 //
-//string intToString(int number){
+// string intToString(int number){
 //	std::stringstream ss;
 //	ss << number;
 //	return ss.str();
 //}
 //
-//void print_help(){
+// void print_help(){
 //	std::cout << "\n\n-----------------Help Menu-----------------\n"
 //			  << "Run command: ./reprojectImageTo3D\n"
 //			  << "Keys:\n"
@@ -80,7 +82,7 @@
 //	          << "\n\n";
 //}
 //
-//void open_source_image(Mat &left,Mat &right){
+// void open_source_image(Mat &left,Mat &right){
 //
 //	    //left = imread("../data/left/left1.png", CV_LOAD_IMAGE_COLOR);    // Read the file
 //	    //right = imread("../data/right/right1.png", CV_LOAD_IMAGE_COLOR);  // Read the file
@@ -97,7 +99,7 @@
 //
 //}
 //
-//int main(int, char**){
+// int main(int, char**){
 //	//Matrix to store each left and right frame of the video_l.avi and video_r.avi
 //	Mat imageL, imageR,imageL_grey,imageR_grey;
 //	int frame_counter=0,input_num=0;
@@ -174,8 +176,10 @@
 //
 //		//change_resolution(&capL,&capR);
 //
-//		cout << "Input 1 Resolution: " << capR.get(CV_CAP_PROP_FRAME_WIDTH) << "x" << capR.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
-//		cout << "Input 2 Resolution: " << capL.get(CV_CAP_PROP_FRAME_WIDTH) << "x" << capL.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+//		cout << "Input 1 Resolution: " << capR.get(CV_CAP_PROP_FRAME_WIDTH) << "x" <<
+//capR.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+//		cout << "Input 2 Resolution: " << capL.get(CV_CAP_PROP_FRAME_WIDTH) << "x" <<
+//capL.get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
 //
 //	//(2) Camera Calibration
 //
@@ -199,7 +203,8 @@
 //		//Ptr<StereoSGBM> sgbm = StereoSGBM::create(0,16,3);
 //
 //		//PreSetup StereoBM Parameters
-//		numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((int)(capR.get(CV_CAP_PROP_FRAME_WIDTH)/8) + 15)/4 & -16;
+//		numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities :
+//((int)(capR.get(CV_CAP_PROP_FRAME_WIDTH)/8) + 15)/4 & -16;
 //
 ///*		bm.state->preFilterCap = 31;
 //		bm->setBlockSize(SADWindowSize > 0 ? SADWindowSize : 9);
@@ -328,16 +333,26 @@
 //			*/
 //
 //			if(show_stereo_parameters){
-//				cout << getTrackbarPos("preFilterSize",trackbarWindowName)			<< "\t" << temp[0] << endl;
-//				cout << getTrackbarPos("preFilterCap",trackbarWindowName)			<< "\t" << temp[1] << endl;
-//				cout << getTrackbarPos("SADWindowSize",trackbarWindowName)			<< "\t" << temp[2] << endl;
-//				cout << getTrackbarPos("minDisparity",trackbarWindowName)			<< "\t" << temp[3] << endl;
-//				cout << getTrackbarPos("numberOfDisparities",trackbarWindowName)	<< "\t" << temp[4] << endl;
-//				cout << getTrackbarPos("textureThreshold",trackbarWindowName)		<< "\t" << temp[5] << endl;
-//				cout << getTrackbarPos("uniquenessRatio",trackbarWindowName)		<< "\t" << temp[6] << endl;
-//				cout << getTrackbarPos("speckleWindowSize",trackbarWindowName)		<< "\t" << temp[7] << endl;
-//				cout << getTrackbarPos("speckleRange",trackbarWindowName)			<< "\t" << temp[8] << endl;
-//				cout << getTrackbarPos("disp12MaxDiff",trackbarWindowName)			<< "\t" << temp[9] << endl;
+//				cout << getTrackbarPos("preFilterSize",trackbarWindowName)			<< "\t" << temp[0]
+//<< endl;
+//				cout << getTrackbarPos("preFilterCap",trackbarWindowName)			<< "\t" << temp[1]
+//<< endl;
+//				cout << getTrackbarPos("SADWindowSize",trackbarWindowName)			<< "\t" << temp[2]
+//<< endl;
+//				cout << getTrackbarPos("minDisparity",trackbarWindowName)			<< "\t" << temp[3]
+//<< endl;
+//				cout << getTrackbarPos("numberOfDisparities",trackbarWindowName)	<< "\t" << temp[4] <<
+//endl;
+//				cout << getTrackbarPos("textureThreshold",trackbarWindowName)		<< "\t" << temp[5] <<
+//endl;
+//				cout << getTrackbarPos("uniquenessRatio",trackbarWindowName)		<< "\t" << temp[6] <<
+//endl;
+//				cout << getTrackbarPos("speckleWindowSize",trackbarWindowName)		<< "\t" << temp[7]
+//<< endl;
+//				cout << getTrackbarPos("speckleRange",trackbarWindowName)			<< "\t" << temp[8]
+//<< endl;
+//				cout << getTrackbarPos("disp12MaxDiff",trackbarWindowName)			<< "\t" << temp[9]
+//<< endl;
 //			}
 //
 //		// Convert BGR to Gray_Scale
@@ -442,7 +457,7 @@
 //    return 0;
 //}
 //
-//void createTrackbars(){ //Create Window for trackbars
+// void createTrackbars(){ //Create Window for trackbars
 //	char TrackbarName[50];
 //
 //	// Create TrackBars Window
@@ -465,7 +480,8 @@
 //    createTrackbar( "preFilterCap", trackbarWindowName, &preFilterCap, preFilterCap_MAX, on_trackbar );
 //    createTrackbar( "SADWindowSize", trackbarWindowName, &SADWindowSize, SADWindowSize_MAX, on_trackbar );
 //    createTrackbar( "minDisparity", trackbarWindowName, &minDisparity, minDisparity_MAX, on_trackbar );
-//    createTrackbar( "numberOfDisparities", trackbarWindowName, &numberOfDisparities, numberOfDisparities_MAX, on_trackbar );
+//    createTrackbar( "numberOfDisparities", trackbarWindowName, &numberOfDisparities, numberOfDisparities_MAX,
+//    on_trackbar );
 //    createTrackbar( "textureThreshold", trackbarWindowName, &textureThreshold, textureThreshold_MAX, on_trackbar );
 //    createTrackbar( "uniquenessRatio", trackbarWindowName, &uniquenessRatio, uniquenessRatio_MAX, on_trackbar );
 //    createTrackbar( "speckleWindowSize", trackbarWindowName, &speckleWindowSize, speckleWindowSize_MAX, on_trackbar );
@@ -473,7 +489,7 @@
 //    createTrackbar( "disp12MaxDiff", trackbarWindowName, &disp12MaxDiff, disp12MaxDiff_MAX, on_trackbar );
 //}
 //
-//void resize_frame(Mat* frame1,Mat* frame2){
+// void resize_frame(Mat* frame1,Mat* frame2){
 //	if(frame1->cols != 0 || !frame2->cols != 0){
 //		#ifdef RESOLUTION_320x240
 //			resize(*frame1, *frame1, Size(320,240), 0, 0, INTER_CUBIC);
@@ -491,7 +507,7 @@
 //	}
 //}
 //
-//void change_resolution(VideoCapture* cap_l,VideoCapture* cap_r){
+// void change_resolution(VideoCapture* cap_l,VideoCapture* cap_r){
 //	#ifdef RESOLUTION_320x240
 //			cap_l->set(CV_CAP_PROP_FRAME_WIDTH, 320);
 //			cap_l->set(CV_CAP_PROP_FRAME_HEIGHT,240);
@@ -513,23 +529,27 @@
 //			cap_r->set(CV_CAP_PROP_FRAME_HEIGHT,720);
 //		#endif
 //
-//		cout << "Camera 1 Resolution: " << cap_l->get(CV_CAP_PROP_FRAME_WIDTH) << "x" << cap_l->get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
-//		cout << "Camera 2 Resolution: " << cap_r->get(CV_CAP_PROP_FRAME_WIDTH) << "x" << cap_r->get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+//		cout << "Camera 1 Resolution: " << cap_l->get(CV_CAP_PROP_FRAME_WIDTH) << "x" <<
+//cap_l->get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
+//		cout << "Camera 2 Resolution: " << cap_r->get(CV_CAP_PROP_FRAME_WIDTH) << "x" <<
+//cap_r->get(CV_CAP_PROP_FRAME_HEIGHT) << endl;
 //}
 //
-//void contrast_and_brightness(Mat &left,Mat &right,float alpha,float beta){
+// void contrast_and_brightness(Mat &left,Mat &right,float alpha,float beta){
 //	//Contrast and Brightness. Do the operation: new_image(i,j) = alpha*image(i,j) + beta
 //	for( int y = 0; y < left.rows; y++ ){
 //		for( int x = 0; x < left.cols; x++ ){
 //			for( int c = 0; c < 3; c++ ){
-//				left .at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*( left .at<Vec3b>(y,x)[c] ) + beta );
-//				right.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*( right.at<Vec3b>(y,x)[c] ) + beta );
+//				left .at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*( left .at<Vec3b>(y,x)[c] ) + beta
+//);
+//				right.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*( right.at<Vec3b>(y,x)[c] ) + beta
+//);
 //			}
 //		}
 //	}
 //}
 //
-//Mat readQMatrix(){
+// Mat readQMatrix(){
 //	Mat Q;
 //	#ifdef RESOLUTION_640x480
 //		FileStorage fs("Q_640_480.yml", FileStorage::READ);
@@ -541,7 +561,7 @@
 //	return(Q);
 //}
 //
-//Mat makeQMatrix(Point2d image_center,double focal_length, double baseline){
+// Mat makeQMatrix(Point2d image_center,double focal_length, double baseline){
 //    Mat Q=Mat::eye(4,4,CV_64F);
 //
 //    Q.at<double>(0,3)=-image_center.x;
@@ -555,7 +575,7 @@
 //    return Q;
 //}
 //
-//void readCalibFiles(Mat &M1,Mat &D1,Mat &M2,Mat &D2,Mat &R,Mat &T){
+// void readCalibFiles(Mat &M1,Mat &D1,Mat &M2,Mat &D2,Mat &R,Mat &T){
 //		FileStorage fs("../data/calib/calib5_640_480/intrinsics.yml", FileStorage::READ);
 //
 //		if(!fs.isOpened()){
@@ -595,7 +615,7 @@
 //
 //
 //
-//void eular2rot(double yaw,double pitch, double roll,Mat& dest){
+// void eular2rot(double yaw,double pitch, double roll,Mat& dest){
 //	double theta = yaw/180.0*CV_PI;
 //	double pusai = pitch/180.0*CV_PI;
 //	double phi = roll/180.0*CV_PI;
@@ -610,7 +630,7 @@
 //	rr.copyTo(dest);
 //}
 //
-//void lookat(Point3d from, Point3d to, Mat& destR){
+// void lookat(Point3d from, Point3d to, Mat& destR){
 //	double x=(to.x-from.x);
 //	double y=(to.y-from.y);
 //	double z=(to.z-from.z);
@@ -621,7 +641,8 @@
 //	eular2rot(yaw, pitch, 0,destR);
 //}
 //
-//void projectImagefromXYZ(Mat &image, Mat &destimage, Mat &disp, Mat &destdisp, Mat &xyz, Mat &R, Mat &t, Mat &K, Mat &dist, bool isSub){
+// void projectImagefromXYZ(Mat &image, Mat &destimage, Mat &disp, Mat &destdisp, Mat &xyz, Mat &R, Mat &t, Mat &K, Mat
+// &dist, bool isSub){
 //	Mat mask;
 //    if(mask.empty())mask=Mat::zeros(image.size(),CV_8U);
 //    if(disp.type()==CV_8U)
@@ -646,8 +667,8 @@
 //    }
 //}
 //
-//template <class T>
-//static void fillOcclusionInv_(Mat& src, T invalidvalue)
+// template <class T>
+// static void fillOcclusionInv_(Mat& src, T invalidvalue)
 //{
 //    int bb=1;
 //    const int MAX_LENGTH=src.cols*0.8;
@@ -690,8 +711,9 @@
 //    }
 //}
 //
-//template <class T>
-//static void projectImagefromXYZ_(Mat& image, Mat& destimage, Mat& disp, Mat& destdisp, Mat& xyz, Mat& R, Mat& t, Mat& K, Mat& dist, Mat& mask, bool isSub)
+// template <class T>
+// static void projectImagefromXYZ_(Mat& image, Mat& destimage, Mat& disp, Mat& destdisp, Mat& xyz, Mat& R, Mat& t, Mat&
+// K, Mat& dist, Mat& mask, bool isSub)
 //{
 //    if(destimage.empty())destimage=Mat::zeros(Size(image.size()),image.type());
 //    if(destdisp.empty())destdisp=Mat::zeros(Size(image.size()),disp.type());
@@ -852,7 +874,7 @@
 //    }
 //}
 //
-//void fillOcclusion(Mat& src, int invalidvalue, bool isInv){
+// void fillOcclusion(Mat& src, int invalidvalue, bool isInv){
 //    if(isInv)
 //    {
 //        if(src.type()==CV_8U)
@@ -893,8 +915,8 @@
 //    }
 //}
 //
-//template <class T>
-//static void fillOcclusion_(Mat& src, T invalidvalue)
+// template <class T>
+// static void fillOcclusion_(Mat& src, T invalidvalue)
 //{
 //    int bb=1;
 //    const int MAX_LENGTH=src.cols*0.5;

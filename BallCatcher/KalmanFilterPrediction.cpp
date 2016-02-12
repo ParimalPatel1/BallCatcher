@@ -7,11 +7,11 @@
 //
 //
 //
-//using namespace std;
-//using namespace cv;
+// using namespace std;
+// using namespace cv;
 //
 //
-//int main(int, char**)
+// int main(int, char**)
 //{
 //	// Initialize Kalman filter object, window, number generator, etc
 //	cvNamedWindow("Kalman", 1);

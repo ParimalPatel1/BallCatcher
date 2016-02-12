@@ -8,20 +8,20 @@
 //#include <iostream>
 //#include <ctype.h>
 //
-//using namespace cv;
-//using namespace std;
+// using namespace cv;
+// using namespace std;
 //
-//Mat image;
+// Mat image;
 //
-//bool backprojMode = false;
-//bool selectObject = false;
-//int trackObject = 0;
-//bool showHist = true;
-//Point origin;
-//Rect selection;
-//int vmin = 10, vmax = 256, smin = 30;
+// bool backprojMode = false;
+// bool selectObject = false;
+// int trackObject = 0;
+// bool showHist = true;
+// Point origin;
+// Rect selection;
+// int vmin = 10, vmax = 256, smin = 30;
 //
-//static void onMouse(int event, int x, int y, int, void*)
+// static void onMouse(int event, int x, int y, int, void*)
 //{
 //	if (selectObject)
 //	{
@@ -48,7 +48,7 @@
 //	}
 //}
 //
-//static void help()
+// static void help()
 //{
 //	cout << "\nThis is a demo that shows mean-shift based tracking\n"
 //		"You select a color objects such as your face and it tracks it.\n"
@@ -65,12 +65,12 @@
 //		"To initialize tracking, select the object with mouse\n";
 //}
 //
-//const char* keys =
+// const char* keys =
 //{
 //	"{@camera_number| 0 | camera number}"
 //};
 //
-//int main(int argc, const char** argv)
+// int main(int argc, const char** argv)
 //{
 //	help();
 //
@@ -141,7 +141,8 @@
 //					int binW = histimg.cols / hsize;
 //					Mat buf(1, hsize, CV_8UC3);
 //					for (int i = 0; i < hsize; i++)
-//						buf.at<Vec3b>(i) = Vec3b(saturate_cast<uchar>(i*180. / hsize), 255, 255);
+//						buf.at<Vec3b>(i) = Vec3b(saturate_cast<uchar>(i*180. / hsize), 255,
+//255);
 //					cvtColor(buf, buf, COLOR_HSV2BGR);
 //
 //					for (int i = 0; i < hsize; i++)
